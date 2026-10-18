@@ -34,7 +34,7 @@ const INTENTS = [
     type: 'gather',
     label: '组个局',
     service: '剧本杀工坊',
-    keywords: ['组个局', '开一局', '组局', '剧本杀', '开本', '聚会', '玩什么', '朋友', '周末', '约', '桌游', '包间', '生日'],
+    keywords: ['组个局', '开一局', '组局', '凑一局', '凑局', '开局', '剧本杀', '开本', '聚会', '玩什么', '朋友', '周末', '约', '桌游', '包间', '生日', '陪我玩', '想玩'],
     weight: 1.15,
   },
   {
@@ -94,6 +94,28 @@ const SCRIPT_LIBRARY = [
   { id: 's08', title: '我的另一半是 AI', players: [4, 5, 6], level: '新手', minutes: 150, genres: ['欢乐', '科幻'], price: 66, dm: false, hook: '轻松不烧脑，适合破冰' },
 ]
 
+// ── 单人玩法库（一个人也能开一局）──────────────────────────
+// 组局不必凑人。一个人玩的本质是「有结构的独处」，不是「没人陪」。
+const SOLO_LIBRARY = [
+  { id: 'so1', title: '一个人的推理盒', kind: '解谜盒', minutes: 90, price: 39, needs: ['纸笔'], hook: '一叠信件、一张地图、一个没有答案的问题', mood: '专注' },
+  { id: 'so2', title: '沉浸音频剧《夜航》', kind: '音频', minutes: 70, price: 18, needs: ['耳机', '关灯'], hook: '跟着声音走一段夜路，中途不能停', mood: '放空' },
+  { id: 'so3', title: '单人剧本《最后一位房客》', kind: '单人本', minutes: 110, price: 45, needs: ['一个安静的晚上'], hook: '整栋楼只剩你和一封信', mood: '沉浸' },
+  { id: 'so4', title: '翻出老本，自己分饰三角', kind: '零成本', minutes: 60, price: 0, needs: ['一本旧剧本'], hook: '把台词念出声，你会发现新东西', mood: '怀旧' },
+  { id: 'so5', title: '纸上推演：重建一个案发现场', kind: '零成本', minutes: 80, price: 0, needs: ['一张纸', '一支笔'], hook: '画三条时间线，看它们在哪一刻对不上', mood: '专注' },
+]
+
+// ── AI NPC 模板 ───────────────────────────────────────────
+// 缺人不必等。NPC 不是陪聊机器人，它要有立场、会隐瞒、能顶嘴，
+// 否则「跟 AI 玩」就变成了「跟客服玩」。
+const NPC_TEMPLATES = [
+  { id: 'n1', name: '老周', role: '退休刑警', temper: '嘴硬心软，先泼冷水再给线索', line: '这案子我见过。当年没人信我。', secret: '他认识死者，但不说。' },
+  { id: 'n2', name: '阿棠', role: '客栈老板娘', temper: '笑面，句句带钩子', line: '客官来得巧，昨天刚走一位。', secret: '账本上少了一页。' },
+  { id: 'n3', name: '小满', role: '跑腿的学徒', temper: '话多、怕事、爱打听', line: '我什么都没看见——真的，我发誓。', secret: '他看见了，但不敢说。' },
+  { id: 'n4', name: '沈先生', role: '账房先生', temper: '冷静，只谈数字不谈人', line: '账是平的。人不是。', secret: '他改过一个数字。' },
+  { id: 'n5', name: '林小姐', role: '戏班台柱', temper: '骄傲，被戳到就翻脸', line: '台上台下，我演的从来不是同一个人。', secret: '她那晚不在戏班。' },
+  { id: 'n6', name: '老K', role: '牌桌上的常客', temper: '油滑，永远只说一半', line: '你想听真话？先押点东西。', secret: '他替人打过一通电话。' },
+]
+
 // ── 场地库 ────────────────────────────────────────────────
 const VENUE_LIBRARY = [
   { id: 'v01', name: '西夏夜话推理馆', city: '银川', capacity: 8, price: 68, tags: ['古风', '包间', '安静'], distanceKm: 3.2, rating: 4.8 },
@@ -138,6 +160,8 @@ module.exports = {
   OVERCOME,
   DISH_LIBRARY,
   SCRIPT_LIBRARY,
+  SOLO_LIBRARY,
+  NPC_TEMPLATES,
   VENUE_LIBRARY,
   CATERING_LIBRARY,
   SYMPTOM_WORDS,

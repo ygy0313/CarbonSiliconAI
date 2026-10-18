@@ -50,6 +50,14 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/smoke.js
 
+      - name: 隐私链路回归（52 项：脱敏/授权/导出/恢复）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-privacy.js
+
+      - name: 干支历算自检（26 项）
+        run: node server/scripts/verify-ganzhi.js
+
       - name: 失败时输出服务日志
         if: failure()
         run: cat /tmp/server.log || true

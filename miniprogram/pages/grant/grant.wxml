@@ -1,0 +1,55 @@
+<view class="container">
+
+  <view class="t-mini mb-16">记录在入库时就已脱敏，原文只存密文。读 prompt、导出、还原原文，都需要在这里签一张票据 —— 有用途、有期限、有次数。</view>
+
+  <view class="section">
+    <view class="section-title">签一张票</view>
+    <view class="row wrap gap-8">
+      <view wx:for="{{scopes}}" wx:key="key" class="{{item.cls}}" bindtap="toggleScope" data-key="{{item.key}}">{{item.label}}</view>
+    </view>
+    <view class="mt-16">
+      <input class="input" value="{{purpose}}" bindinput="onPurpose" placeholder="用途，例如：导出给新手机恢复" maxlength="60" />
+    </view>
+    <view class="row gap-8 mt-16">
+      <button class="btn btn-primary" bindtap="issue" disabled="{{issuing}}">{{issuing ? '签发中…' : '签发票据'}}</button>
+    </view>
+    <view class="mt-16" wx:if="{{issuedToken}}">
+      <view class="token-box" bindtap="copyToken">{{issuedToken}}</view>
+      <view class="t-mini">只显示这一次，15 分钟有效、最多 3 次。点一下可复制。</view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">用票据做什么</view>
+    <view class="row wrap gap-8">
+      <button class="btn btn-ghost btn-sm" bindtap="readPrompt" disabled="{{busy}}">读取 prompt</button>
+      <button class="btn btn-ghost btn-sm" bindtap="doExport" data-depth="safe" disabled="{{busy}}">导出（仅脱敏）</button>
+      <button class="btn btn-ghost btn-sm" bindtap="doExport" data-depth="sealed" disabled="{{busy}}">导出（含密文）</button>
+      <button class="btn btn-ghost btn-sm" wx:if="{{promptText}}" bindtap="copyPrompt">复制 prompt</button>
+    </view>
+    <view class="t-mini mt-8" wx:if="{{exportInfo}}">{{exportInfo}}</view>
+    <view class="prompt-box mt-16" wx:if="{{promptText}}">{{promptText}}</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">票据</view>
+    <view class="empty" wx:if="{{!grants.length}}">还没有签发过授权</view>
+    <view wx:for="{{grants}}" wx:key="id" class="{{item.rowCls}}">
+      <view class="grow">
+        <view class="t-body">{{item.scopeText}}</view>
+        <view class="t-mini mt-8">{{item.purpose}} · {{item.stateText}}</view>
+      </view>
+      <button class="btn btn-ghost btn-sm" wx:if="{{!item.revoked}}" bindtap="revoke" data-id="{{item.id}}">撤销</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">审计</view>
+    <view class="empty" wx:if="{{!audits.length}}">暂无记录</view>
+    <view wx:for="{{audits}}" wx:key="id" class="grant-row">
+      <text class="t-mini">{{item.time}}</text>
+      <text class="t-mini grow">{{item.text}}</text>
+    </view>
+  </view>
+
+</view>

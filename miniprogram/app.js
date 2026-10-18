@@ -1,4 +1,4 @@
-// 硅基记忆体 · 小程序入口
+// 起居注 · 小程序入口
 const api = require('./utils/api')
 
 App({
@@ -7,6 +7,8 @@ App({
     apiBase: 'http://127.0.0.1:8787',
     silicon: null,
     offline: false,
+    // 授权票据：只在内存里，退出小程序即失效（明文票据绝不落 storage）
+    tokens: {},
   },
 
   onLaunch() {

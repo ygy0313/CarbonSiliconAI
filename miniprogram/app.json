@@ -5,12 +5,13 @@
     "pages/plan/plan",
     "pages/record/record",
     "pages/profile/profile",
-    "pages/services/services"
+    "pages/services/services",
+    "pages/grant/grant"
   ],
   "window": {
     "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#0B0F14",
-    "navigationBarTitleText": "硅基记忆体",
+    "navigationBarTitleText": "起居注",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#0B0F14",
     "navigationStyle": "default"
@@ -21,9 +22,10 @@
     "backgroundColor": "#0E141B",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/index/index", "text": "硅基体" },
+      { "pagePath": "pages/index/index", "text": "执笔" },
       { "pagePath": "pages/record/record", "text": "记录" },
-      { "pagePath": "pages/profile/profile", "text": "档案" }
+      { "pagePath": "pages/profile/profile", "text": "档案" },
+      { "pagePath": "pages/grant/grant", "text": "契" }
     ]
   },
   "style": "v2",

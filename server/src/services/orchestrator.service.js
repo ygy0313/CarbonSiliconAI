@@ -3,7 +3,7 @@
 // 编排器：整个产品的调度中枢。
 //
 // 一次编排 = 意图识别 → 能力召回 → 依赖解析 → 分层并行执行 → 仲裁合并 → 落库
-// 每次编排都留完整 trace，前端可以逐帧播放「你的硅基体在思考」。
+// 每次编排都留完整 trace，前端可以逐帧播放「执笔在怎么想」。
 
 const registry = require('../agents/registry')
 const { INTENTS } = require('../domain/taxonomy')
@@ -11,6 +11,12 @@ const { compileSilicon, recall } = require('./profile.service')
 const log = require('../logger')
 
 const AGENT_TIMEOUT_MS = 4000
+
+const MODE_LABEL = {
+  solo: '一个人开一局',
+  npc: '跟 AI 凑一局',
+  group: '一群人玩',
+}
 
 // 确保所有能力被加载并注册（副作用 import）
 require('../agents/fortune.agent')
@@ -55,6 +61,21 @@ function detectIntent(text) {
   }
 }
 
+/**
+ * 判断「局」的形态。
+ * 用户不必学会选模式 —— 从这句话里读出来：
+ *   「一个人」「自己待会」→ solo
+ *   「和 AI」「找 NPC 陪我」→ npc
+ *   其余 → group
+ */
+function detectGatherMode(text, entities = {}) {
+  const t = String(text || '')
+  if (/和\s*(?:AI|ai|机器人|NPC|npc|虚拟人)|找\s*(?:AI|NPC)|AI\s*陪|陪玩|人不够/.test(t)) return 'npc'
+  if (entities.headcount === 1 || entities.scene === 'alone') return 'solo'
+  if (/一个人|自己玩|独自|不想叫人|没人陪/.test(t)) return 'solo'
+  return 'group'
+}
+
 function withTimeout(promise, ms, id) {
   return Promise.race([
     promise,
@@ -83,7 +104,7 @@ async function orchestrate(repos, personId, text, opts = {}) {
   const intent = detectIntent(text)
   push('intent', `识别意图：${intent.label}`, { detail: intent.matched.join('、'), confidence: intent.confidence })
 
-  // ── 2. 编译硅基体（人格包）──
+  // ── 2. 编译人格包──
   const silicon = compileSilicon(repos, personId, { limit: 30 })
   if (!silicon) {
     return { error: 'PERSON_NOT_FOUND', intent, trace }
@@ -95,6 +116,14 @@ async function orchestrate(repos, personId, text, opts = {}) {
   const facts = Object.fromEntries(
     silicon.facts.filter(f => f.confidence >= 0.3).map(f => [f.key, f.value])
   )
+
+  // 局的形态（solo / npc / group）必须在执行前定下来，
+  // 因为选本、场地、茶歇三个能力的行为都取决于它。
+  const entities = { ...(opts.entities || {}) }
+  if (intent.type === 'gather') {
+    entities.gatherMode = detectGatherMode(text, entities)
+    push('mode', `局的形态：${MODE_LABEL[entities.gatherMode]}`, { detail: entities.gatherMode })
+  }
 
   // ── 3. 召回 ──
   const seeds = registry.candidatesFor(intent.type)
@@ -125,8 +154,9 @@ async function orchestrate(repos, personId, text, opts = {}) {
     profile: silicon,
     facts,
     intent,
-    entities: opts.entities || {},
+    entities,
     tags: opts.tags || [],
+    rawText: text,
     now,
     outputs,
   }
@@ -170,7 +200,6 @@ async function orchestrate(repos, personId, text, opts = {}) {
   })
 
   const summary = buildSummary({ intent, cards, outputs, entities: ctx.entities })
-
   // ── 7. 落库 ──
   const invocation = repos.invocation.insert({
     personId,
@@ -233,8 +262,16 @@ function compose({ outputs, intent, silicon, facts, entities }) {
   // gather 场景：把三条独立推荐「组装成一个局」。
   // 这是多 agent 协同真正的产出物 —— 用户要的不是三个选项，是一份能照着做的安排。
   if (intent.type === 'gather') {
-    const bundle = buildGatherBundle({ cards: deduped, outputs, entities, facts })
-    if (bundle) return [bundle, ...deduped]
+    const mode = entities.gatherMode || 'group'
+    // 一个人的局里，包间和多人本毫无意义。先剔除，再组装 ——
+    // 否则会给出「一个人去订 6 人包间」这种荒唐建议。
+    const pool = mode === 'solo'
+      ? deduped.filter(c => !['venue_', 'catering_', 'script_'].some(p => c.id.startsWith(p)))
+      : deduped
+
+    const bundle = buildGatherBundle({ cards: pool, outputs, entities, facts, mode })
+    if (bundle) return [bundle, ...pool]
+    return pool
   }
 
   return deduped
@@ -255,13 +292,137 @@ function fmtDur(min) {
 }
 
 /**
- * 组装「一个完整的局」：本 + 场地 + 茶歇 + 时间线 + 待办。
+ * 组装「一个完整的局」。三种形态共用同一个出口，但拼的东西不同：
+ *   group —— 本 + 场地 + 茶歇 + 时间线 + 待办
+ *   solo  —— 玩法 + 前置条件 + 时间线（不含场地、不含凑人）
+ *   npc   —— 本 + NPC 班底（姓名/身份/性格/台词/秘密）+ 互动节奏
  * 任何一部分缺失都能降级，不会因为某个 agent 挂了就拼不出来。
  */
-function buildGatherBundle({ cards, outputs, entities, facts }) {
-  const script = cards.find(c => c.id.startsWith('script_'))
-  if (!script) return null
+function buildGatherBundle({ cards, outputs, entities, facts, mode }) {
+  const play = cards.find(c => c.id.startsWith('script_') || c.id.startsWith('solo_'))
+  if (!play) return null
 
+  if (mode === 'solo') return buildSoloBundle({ play, outputs, facts, entities })
+  if (mode === 'npc') return buildNpcBundle({ play, outputs, facts, entities })
+  return buildGroupBundle({ play, cards, outputs, facts, entities })
+}
+
+// ── 一个人的局 ──
+function buildSoloBundle({ play, outputs, facts, entities }) {
+  const cal = outputs['calendar.check']?.meta
+  const fortune = outputs['fortune.today']?.meta
+  const minutes = Number(play.meta.minutes) || 80
+  const price = Number(play.meta.price) || 0
+  const needs = play.meta.needs || []
+
+  // 一个人玩不必赶早，夜猫子再往后挪
+  const startAt = facts['life.rhythm'] === '夜猫子' ? '21:30' : '20:30'
+  const prepAt = addMinutes(startAt, -15)
+  const endAt = addMinutes(startAt, minutes)
+  const doneAt = addMinutes(endAt, 10)
+
+  const timeline = [
+    { time: prepAt, text: `${needs.length ? `备好${needs.join('、')}，` : ''}手机调静音，别开着群消息` },
+    { time: startAt, text: `开始：${play.meta.hook || play.title}` },
+    { time: endAt, text: '停下来，写三句话：哪一刻你觉得不对劲' },
+    { time: doneAt, text: '收工。今天到这儿就够，不用一次玩完' },
+  ]
+
+  const todos = [
+    `${needs.length ? `准备：${needs.join('、')}` : '找个安静角落'}`,
+    '跟家里人说一声这半小时别叫你',
+    '中途不刷手机 —— 这是唯一一条硬规矩',
+  ]
+
+  const why = [...(play.why || [])]
+  if (fortune?.tone) why.push(`今天整体${fortune.tone.label}，${fortune.tone.advice}`)
+
+  return {
+    id: 'plan_solo',
+    kind: 'plan',
+    title: `一个人的局 · ${cal?.dayOfWeek || '今晚'}`,
+    desc: `${play.title} · ${fmtDur(minutes)} · ${price ? `约 ${price} 元` : '零成本'}${needs.length ? ` · 需要${needs.join('、')}` : ''}`,
+    why: why.slice(0, 3),
+    evidence: [],
+    score: play.score,
+    source: '起居注 · 一个人也能开一局',
+    meta: {
+      mode: 'solo',
+      date: cal?.date,
+      dateStr: cal?.dateStr,
+      headcount: 1,
+      totalPerPerson: price,
+      parts: [play.id],
+      timeline,
+      todos,
+      tone: fortune?.tone || null,
+      missing: [],
+    },
+  }
+}
+
+// ── 跟 AI 凑一局 ──
+function buildNpcBundle({ play, outputs, facts, entities }) {
+  const cal = outputs['calendar.check']?.meta
+  const fortune = outputs['fortune.today']?.meta
+  const minutes = Number(play.meta.minutes) || 180
+  const price = Number(play.meta.price) || 0
+  const cast = play.meta.cast || []
+  const humans = play.meta.humans || 1
+
+  const startAt = facts['life.rhythm'] === '夜猫子' ? '20:30' : '20:00'
+  const readAt = addMinutes(startAt, -30)
+  const midAt = addMinutes(startAt, Math.round(minutes * 0.45))
+  const endAt = addMinutes(startAt, minutes)
+
+  const timeline = [
+    { time: readAt, text: `读本，顺手给每个 NPC 记一句「他可能在瞒什么」` },
+    { time: startAt, text: `开局，${cast.map(c => c.name).join('、')} 依次开口` },
+    { time: midAt, text: '挑一个最可疑的单独问话，别一次问完' },
+    { time: addMinutes(endAt, -10), text: '指认。NPC 会狡辩，这是设计好的' },
+    { time: endAt, text: '看复盘，对一下你漏了哪条线' },
+  ]
+
+  const todos = [
+    `定规矩：NPC 不许替你做决定，只能回答和演戏`,
+    cast.length ? `先认人：${cast.map(c => `${c.name}（${c.role}）`).join(' / ')}` : '先认人',
+    '准备纸笔，记时间线 —— 跟 AI 玩也逃不掉做笔记',
+    '关掉群消息，NPC 会抢你的注意力',
+  ]
+
+  const why = []
+  if (fortune?.tone) why.push(`今天${fortune.tone.label}，${fortune.tone.advice}`)
+  why.push(`${humans} 个人 + ${cast.length} 个 NPC，凑齐 ${play.meta.headcount} 人，不用等人凑局`)
+  why.push('不需要真人 DM，规则由 AI 自己守')
+
+  return {
+    id: 'plan_npc',
+    kind: 'plan',
+    title: `你 + ${cast.length} 个 AI · ${cal?.dayOfWeek || '今晚'}`,
+    desc: `${play.title.replace(/[《》]/g, '')} · ${play.meta.headcount} 人（含 ${cast.length} 个 NPC）· ${fmtDur(minutes)} · 人均 ${price} 元`,
+    why: why.slice(0, 3),
+    evidence: [],
+    score: play.score,
+    source: '起居注 · AI 陪局',
+    meta: {
+      mode: 'npc',
+      date: cal?.date,
+      dateStr: cal?.dateStr,
+      headcount: play.meta.headcount,
+      humans,
+      totalPerPerson: price,
+      cast,
+      parts: [play.id],
+      timeline,
+      todos,
+      tone: fortune?.tone || null,
+      missing: [],
+    },
+  }
+}
+
+// ── 一群人凑本 ──
+function buildGroupBundle({ play: script, cards, outputs, facts, entities }) {
   const venue = cards.find(c => c.id.startsWith('venue_'))
   const catering = cards.find(c => c.id.startsWith('catering_'))
   const cal = outputs['calendar.check']?.meta
@@ -296,7 +457,7 @@ function buildGatherBundle({ cards, outputs, entities, facts }) {
   if (script.meta.headcountFit?.includes(headcount)) why.push(`${headcount} 人正好，不用临时凑人`)
   if (script.meta.level === '新手') why.push('新手本，没玩过的人不会有压力')
   if (venuePrice === 0) why.push('场地零成本，预算全留给茶歇')
-  else if (venue) why.push(`${venue.title.replace(/（.*?）/g, '')}离你 ${venue.meta?.price ? '' : ''}近，散场不折腾`)
+  else if (venue) why.push(`${venue.title.replace(/（.*?）/g, '')}离你近，散场不折腾`)
   if (totalPerPerson && entities.budget) {
     why.push(totalPerPerson <= entities.budget
       ? `人均 ${totalPerPerson} 元，在你 ${entities.budget} 的预算内`
@@ -313,6 +474,7 @@ function buildGatherBundle({ cards, outputs, entities, facts }) {
     score: script.score,
     source: '多服务协同',
     meta: {
+      mode: 'group',
       date: cal?.date,
       dateStr: cal?.dateStr,
       headcount,
@@ -331,7 +493,15 @@ function buildSummary({ intent, cards, outputs, entities }) {
 
   if (intent.type === 'gather') {
     const bundle = cards.find(c => c.kind === 'plan')
-    if (bundle) return `${bundle.meta.dateStr || '待定'} · ${bundle.meta.headcount} 人 · ${bundle.desc}`
+    if (bundle) {
+      const when = bundle.meta.dateStr || '今晚'
+      if (bundle.meta.mode === 'solo') return `${when} · 一个人 · ${bundle.desc}`
+      if (bundle.meta.mode === 'npc') {
+        const n = (bundle.meta.cast || []).length
+        return `${when} · 你 + ${n} 个 AI · ${bundle.desc}`
+      }
+      return `${when} · ${bundle.meta.headcount} 人 · ${bundle.desc}`
+    }
     const script = cards.find(c => c.id.startsWith('script_'))
     return script ? script.title : primary.title
   }
@@ -344,4 +514,4 @@ function buildSummary({ intent, cards, outputs, entities }) {
   return primary.title
 }
 
-module.exports = { orchestrate, detectIntent }
+module.exports = { orchestrate, detectIntent, detectGatherMode }

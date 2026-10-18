@@ -9,14 +9,17 @@ function setBase(base) {
   BASE = String(base || '').replace(/\/$/, '')
 }
 
-function request(path, { method = 'GET', data = null } = {}) {
+function request(path, { method = 'GET', data = null, token = null } = {}) {
   return new Promise((resolve, reject) => {
+    const header = { 'Content-Type': 'application/json' }
+    // 令牌只放请求头，绝不进 URL（URL 会进访问日志）
+    if (token) header['X-Grant-Token'] = token
     wx.request({
       url: BASE + path,
       method,
       data: data || undefined,
       timeout: TIMEOUT,
-      header: { 'Content-Type': 'application/json' },
+      header,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.ok) {
           resolve(res.data.data)
@@ -71,4 +74,23 @@ module.exports = {
       method: 'POST',
       data: { decision },
     }),
+
+  // ── 脱敏与授权 ──
+  redactPreview: (personId, text) =>
+    request(`/api/persons/${personId}/redact/preview`, { method: 'POST', data: { text } }),
+  getGrants: personId => request(`/api/persons/${personId}/grants`),
+  issueGrant: (personId, payload) =>
+    request(`/api/persons/${personId}/grants`, { method: 'POST', data: payload }),
+  revokeGrant: (personId, grantId) =>
+    request(`/api/persons/${personId}/grants/${grantId}/revoke`, { method: 'POST' }),
+  getPrompt: (personId, token) => request(`/api/persons/${personId}/prompt`, { token }),
+  exportArchive: (personId, token, scopes) =>
+    request(`/api/persons/${personId}/export`, { method: 'POST', token, data: { scopes } }),
+
+  // ── 入局问答与历算 ──
+  getQuiz: personId => request(`/api/persons/${personId}/quiz`),
+  answerQuiz: (personId, questionId, optionKey) =>
+    request(`/api/persons/${personId}/quiz`, { method: 'POST', data: { questionId, optionKey } }),
+  getGanzhi: (personId, date) =>
+    request(`/api/persons/${personId}/ganzhi${date ? `?date=${date}` : ''}`),
 }

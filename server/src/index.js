@@ -4,12 +4,17 @@
 // 控制器层不写业务逻辑，只做「解析请求 / 调用服务 / 格式化响应」三件事。
 
 const http = require('http')
+const fs = require('fs')
+const path = require('path')
 const crypto = require('crypto')
 const { config, validate } = require('./config')
 const log = require('./logger')
 const { AppError, ValidationError, NotFoundError, InternalError } = require('./errors')
 const { createRepos } = require('./store/repos')
 const { FACT_DIMENSIONS, INTENTS } = require('./domain/taxonomy')
+const { BRAND } = require('./domain/brand')
+const quiz = require('./domain/quiz')
+const gz = require('./domain/ganzhi')
 const registry = require('./agents/registry')
 const baseAgents = require('./agents/registry') // 触发注册
 require('./agents/fortune.agent')
@@ -23,6 +28,12 @@ const { extract } = require('./services/extract.service')
 const { recordEpisode, compileSilicon } = require('./services/profile.service')
 const { orchestrate } = require('./services/orchestrator.service')
 const { applyFeedback, resolveConflict, detectAndQueueConflict } = require('./services/verify.service')
+const { applyAnswer } = require('./services/quiz.service')
+const { buildPersonaPrompt, summarize: summarizePrompt } = require('./services/prompt.service')
+const { exportArchive, importArchive, verifyArchive } = require('./services/export.service')
+const vault = require('./security/vault')
+const grant = require('./security/grant')
+const { redact, redactDeep } = require('./security/redact')
 const llm = require('./llm/provider')
 const { seedDemo } = require('./seed')
 
@@ -84,6 +95,12 @@ function requireString(value, field, max = 2000) {
   return value.trim()
 }
 
+// 授权票据从请求头读，绝不从 URL 读 —— query string 会进访问日志。
+function requireGrant(req, personId, scope, meta = {}) {
+  const token = req.headers['x-grant-token']
+  return grant.consume(repos, personId, token, scope, meta)
+}
+
 // ── 路由表 ───────────────────────────────────────────────
 const routes = [
   {
@@ -100,14 +117,40 @@ const routes = [
     method: 'GET',
     pattern: /^\/api\/meta$/,
     handler: async () => ({
-      product: '硅基记忆体',
-      version: '0.1.0',
+      product: BRAND.name,
+      fullName: BRAND.fullName,
+      tagline: BRAND.tagline,
+      slogan: BRAND.slogan,
+      intro: BRAND.intro,
+      persona: { name: BRAND.personaName, desc: BRAND.personaDesc },
+      version: BRAND.version,
+      exportFormat: BRAND.exportFormat,
       llm: llm.describe(),
       dimensions: FACT_DIMENSIONS,
       intents: INTENTS.map(i => ({ type: i.type, label: i.label, service: i.service })),
       services: baseAgents.list(),
       memory: { halfLifeDays: config.memory.halfLifeDays },
+      privacy: {
+        vault: vault.describe(),
+        defaults: '记录先脱敏再入库，原文只存密文；读取 prompt / 导出 / 还原原文均需显式授权',
+      },
+      quiz: { total: quiz.QUESTIONS.length, groups: Object.keys(quiz.QUESTIONS.reduce((a, q) => { a[q.group] = 1; return a }, {})) },
     }),
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/ganzhi$/,
+    handler: async ({ query }) => {
+      const dateStr = query.get('date')
+      const d = dateStr ? new Date(dateStr) : new Date()
+      if (Number.isNaN(d.getTime())) throw new ValidationError('date 不是合法日期')
+      return gz.ganzhiOf(d, query.get('element') || null)
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/quiz$/,
+    handler: async () => ({ questions: quiz.list() }),
   },
   {
     method: 'GET',
@@ -279,12 +322,155 @@ const routes = [
       return { invocations: repos.invocation.byPerson(params[0], 20) }
     },
   },
+  // ── 入局问答：建档不靠填表 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/quiz$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      return { progress: quiz.progress(repos, params[0]), questions: quiz.list() }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/quiz$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const questionId = requireString(body.questionId, 'questionId', 32)
+      const optionKey = requireString(body.optionKey, 'optionKey', 8)
+      return applyAnswer(repos, params[0], questionId, optionKey)
+    },
+  },
+
+  // ── 今日节律：流年 / 流月 / 流日 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/ganzhi$/,
+    handler: async ({ params, query }) => {
+      requirePerson(params[0])
+      const dateStr = query.get('date')
+      const d = dateStr ? new Date(dateStr) : new Date()
+      if (Number.isNaN(d.getTime())) throw new ValidationError('date 不是合法日期')
+      const silicon = compileSilicon(repos, params[0], { limit: 1 })
+      const el = silicon?.facts?.find(f => f.key === 'self.element' && f.confidence >= 0.4)?.value || null
+      return gz.ganzhiOf(d, el)
+    },
+  },
+
+  // ── 脱敏体检：先看这句话里有什么会被抹掉，再决定记不记 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/redact\/preview$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const text = requireString(body.text, 'text', 2000)
+      const r = redact(text)
+      return { original: text, redacted: r.text, hits: r.hits, tokenCount: r.tokens.length }
+    },
+  },
+
+  // ── 授权：签发 / 列表 / 撤销 / 审计 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/grants$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      return {
+        scopes: grant.SCOPES,
+        grants: grant.list(repos, params[0]),
+        audits: grant.audits(repos, params[0], 20),
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/grants$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const result = grant.issue(repos, params[0], {
+        scopes: body.scopes,
+        purpose: body.purpose,
+        ttlSec: body.ttlSec,
+        maxUses: body.maxUses,
+      })
+      log.warn('已签发授权票据', { personId: params[0], scopes: result.grant.scopes, purpose: result.grant.purpose })
+      return result
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/grants\/([\w-]+)\/revoke$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      return grant.revoke(repos, params[0], params[1])
+    },
+  },
+
+  // ── 读取人格 prompt：必须持 grant(scope=prompt) ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/prompt$/,
+    handler: async ({ params, req, query }) => {
+      requirePerson(params[0])
+      requireGrant(req, params[0], 'prompt', { route: 'GET /prompt' })
+      const silicon = compileSilicon(repos, params[0], { limit: 30 })
+      const prompt = buildPersonaPrompt(silicon, { includeEpisodes: query.get('episodes') !== '0' })
+      return {
+        prompt,
+        summary: summarizePrompt(prompt),
+        generatedAt: new Date().toISOString(),
+        note: 'prompt 里只含脱敏后的记录，原文不在其中。',
+      }
+    },
+  },
+
+  // ── 标准导出：必须持 grant(scope=export)，深度由票据 scope 决定 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/export$/,
+    handler: async ({ params, body, req }) => {
+      requirePerson(params[0])
+      const want = Array.isArray(body.scopes) && body.scopes.length ? body.scopes : ['export']
+      const needed = ['export', ...want.filter(s => s === 'prompt' || s === 'raw')]
+      const g = requireGrant(req, params[0], 'export', { route: 'POST /export' })
+      // 票据里没写到的深度，一律不给
+      for (const s of needed) {
+        if (s !== 'export' && !g.scopes.includes(s)) {
+          throw new AppError('FORBIDDEN', `该票据不含「${grant.SCOPES[s].label}」权限`, 403)
+        }
+      }
+      const archive = exportArchive(repos, params[0], {
+        scopes: needed,
+        includeName: !!body.includeName,
+      })
+      grant.audit(repos, { personId: params[0], action: 'export.create', depth: archive.depth, checksum: archive.checksum })
+      return archive
+    },
+  },
+
+  // ── 导入 / 恢复：不需要授权，因为是往「新档案」里写 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/import$/,
+    handler: async ({ body }) => {
+      const archive = body.archive || body
+      const check = verifyArchive(archive)
+      if (!check.ok) throw new ValidationError(`导入失败：${check.error}`)
+      return importArchive(repos, archive, { name: body.name })
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/archive\/verify$/,
+    handler: async ({ body }) => verifyArchive(body.archive || body),
+  },
+
   {
     method: 'POST',
     pattern: /^\/api\/dev\/reset$/,
     handler: async () => {
       if (config.env === 'production') throw new ValidationError('生产环境禁止重置')
-      for (const name of ['persons', 'facts', 'episodes', 'traits', 'invocations', 'conflicts']) {
+      for (const name of ['persons', 'facts', 'episodes', 'traits', 'invocations', 'conflicts', 'grants', 'audits']) {
         const col = repos.store.collection(name)
         col.items.length = 0
         col._persist()
@@ -294,6 +480,46 @@ const routes = [
     },
   },
 ]
+
+// ── 静态资源（H5 端）─────────────────────────────────────
+const WEB_DIR = path.join(__dirname, '..', '..', 'web')
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+}
+
+function serveStatic(req, res, pathname) {
+  let rel = decodeURIComponent(pathname)
+  if (rel === '/' || rel === '') rel = '/index.html'
+
+  const full = path.join(WEB_DIR, rel)
+  // 目录穿越防护：解析后必须仍在 WEB_DIR 内
+  if (!full.startsWith(WEB_DIR)) {
+    res.writeHead(403).end('forbidden')
+    return true
+  }
+  if (!fs.existsSync(full) || !fs.statSync(full).isFile()) return false
+
+  const ext = path.extname(full).toLowerCase()
+  const body = fs.readFileSync(full)
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Content-Length': body.length,
+    // HTML 不缓存（要能立刻看到新版本），静态资源短缓存
+    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=300',
+    'X-Content-Type-Options': 'nosniff',
+  })
+  res.end(body)
+  return true
+}
 
 // ── 服务 ────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
@@ -308,12 +534,17 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Grant-Token')
     res.setHeader('Access-Control-Max-Age', '600')
   }
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     return res.end()
+  }
+
+  // H5 静态资源：与 API 同源部署，省一次跨域与一个域名
+  if (req.method === 'GET' && !pathname.startsWith('/api/')) {
+    if (serveStatic(req, res, pathname)) return
   }
 
   try {
@@ -363,6 +594,10 @@ const server = http.createServer(async (req, res) => {
 
 // ── 启动 / 停机 ──────────────────────────────────────────
 async function bootstrap() {
+  // 保险箱必须在任何一条记录写入之前就绪，否则第一条记录会退化为「只存脱敏文本」
+  const vaultState = vault.init(config.dataDir)
+  log.info('保险箱已就绪', { source: vaultState.source })
+
   if (config.seedDemo && !repos.person.get(PERSON_DEFAULT)) {
     seedDemo(repos, PERSON_DEFAULT)
     log.info('已写入演示档案', { personId: PERSON_DEFAULT })
@@ -374,8 +609,17 @@ async function bootstrap() {
       env: config.env,
       llm: llm.describe(),
       services: baseAgents.list().length,
+      vault: vaultState.source,
     })
-    console.log(`\n  硅基记忆体 · 编排服务\n  http://127.0.0.1:${config.port}\n  LLM: ${llm.describe().enabled ? llm.describe().model : '规则引擎（零成本）'}\n  能力: ${baseAgents.list().map(s => s.name).join(' / ')}\n`)
+    console.log(`
+  ${BRAND.name} · ${BRAND.slogan}
+  http://127.0.0.1:${config.port}          H5 端
+  http://127.0.0.1:${config.port}/api/meta 接口自述
+
+  模型: ${llm.describe().enabled ? llm.describe().model : '规则引擎（零成本）'}
+  能力: ${baseAgents.list().map(s => s.name).join(' / ')}
+  保险箱: ${vaultState.source === 'env' ? '环境变量口令' : '本地密钥文件（生产请改 QJZ_PASSPHRASE）'}
+`)
   })
 }
 

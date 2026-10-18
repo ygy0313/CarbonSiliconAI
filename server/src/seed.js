@@ -1,10 +1,11 @@
 'use strict'
 
-// 演示档案：让第一次打开就能看到「一个已经活了 30 天的硅基体」。
+// 演示档案：让第一次打开就能看到「一个已经活了 30 天的档案」。
 // 数据不是随机生成的，是围绕一个真实的西北中年男性生活轨迹写的，
 // 这样推荐结果才看得出逻辑（而不是随便排三条）。
 
 const DAY = 86400000
+const { redactDeep } = require('./security/redact')
 
 function daysAgo(n, hour = 20) {
   const d = new Date(Date.now() - n * DAY)
@@ -133,16 +134,22 @@ function seedDemo(repos, personId) {
   ]
 
   for (const e of episodes) {
+    // 演示数据也走同一条脱敏流水线 —— 不能有「这条是 seed 所以可以留明文」的例外口子
+    const safe = redactDeep({ text: e.text, summary: e.summary, entities: e.entities })
     repos.episode.insert({
       personId,
       ts: daysAgo(e.d, e.h),
       kind: e.kind,
-      text: e.text,
+      text: safe.value.text,
       tags: e.tags,
-      entities: e.entities,
-      summary: e.summary,
+      entities: safe.value.entities,
+      summary: safe.value.summary,
       source: 'seed',
       confidence: 0.9,
+      redacted: true,
+      redaction: { hits: safe.hits, sealed: false },
+      rawCipher: null,
+      piiCipher: null,
     })
   }
 

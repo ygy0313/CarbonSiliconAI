@@ -3,7 +3,7 @@
   <view class="row between">
     <view>
       <view class="t-title">{{name}} 的档案</view>
-      <view class="t-mini mt-8">这是硅基体的燃料。填得越准，它越像你。</view>
+      <view class="t-mini mt-8">这是执笔的底气。填得越准，它越像你。</view>
     </view>
     <view class="pct-box">
       <text class="t-green t-title">{{completenessPct}}%</text>

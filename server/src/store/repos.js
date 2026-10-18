@@ -16,11 +16,13 @@ function createRepos(dataDir) {
   const traits = store.collection('traits')
   const invocations = store.collection('invocations')
   const conflicts = store.collection('conflicts')
+  const grants = store.collection('grants')
+  const audits = store.collection('audits')
 
   return {
     store,
 
-    // ── 人（一个 person 就是一个硅基体的宿主）──
+    // ── 人（一个 person 就是一位用户的宿主）──
     person: {
       get: id => persons.byId(id),
       list: () => persons.all(),
@@ -110,6 +112,22 @@ function createRepos(dataDir) {
       insert: doc => conflicts.insert({ id: newId('c'), createdAt: new Date().toISOString(), status: 'open', ...doc }),
       update: (id, patch) => conflicts.update(id, patch),
       all: () => conflicts.all(),
+    },
+
+    // ── 授权票据：用户对「读取 prompt / 导出 / 还原原文」的显式许可 ──
+    grant: {
+      get: id => grants.byId(id),
+      byPerson: personId => grants.find(g => g.personId === personId),
+      findOne: predicate => grants.findOne(predicate),
+      insert: doc => grants.insert({ createdAt: new Date().toISOString(), used: 0, revoked: false, ...doc }),
+      update: (id, patch) => grants.update(id, patch),
+    },
+
+    // ── 审计日志：签发、使用、拒绝都留痕，只追加不修改 ──
+    audit: {
+      byPerson: personId => audits.find(a => a.personId === personId),
+      insert: doc => audits.insert({ id: newId('a'), ...doc }),
+      all: () => audits.all(),
     },
 
     newId,

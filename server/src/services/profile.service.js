@@ -1,6 +1,6 @@
 'use strict'
 
-// 画像服务：把「一堆记录」编译成「一个可执行的硅基体」。
+// 画像服务：把「一堆记录」编译成「一个可执行的人格包」。
 //
 // 这是整个产品的核心转换：
 //   episodes（行为事实） + facts（声明事实） + traits（推断倾向）
@@ -8,6 +8,9 @@
 
 const { FACT_DIMENSIONS, DISH_LIBRARY } = require('../domain/taxonomy')
 const { config } = require('../config')
+const { redactDeep } = require('../security/redact')
+const vault = require('../security/vault')
+const log = require('../logger')
 
 const DAY = 86400000
 
@@ -25,23 +28,51 @@ function labelOf(key) {
 }
 
 /**
- * 写入一条记录：同时落 记忆 + 事实，并回写画像。
- * 单用户下无并发压力，但顺序仍然重要：先写记忆（不可变的原始事实），再更新声明事实。
+ * 写入一条记录：脱敏 → 加密原文 → 落记忆 + 事实 → 回写画像。
+ *
+ * 铁律：`episodes[].text` 永远是脱敏后的文本，原文只存在于 `rawCipher`（AES-256-GCM）。
+ * 保险箱不可用时（未配置口令）降级为「只存脱敏文本」，宁可丢原文，不可留明文。
  */
 function recordEpisode(repos, personId, extracted, source = 'manual') {
   const now = new Date().toISOString()
+
+  // ── 1. 脱敏：文本、摘要、实体一起处理（实体里常有「地址」「联系人」）──
+  const safe = redactDeep({
+    text: extracted.text,
+    summary: extracted.summary || '',
+    entities: extracted.entities || {},
+  })
+
+  // ── 2. 原文与 PII 映射表进保险箱 ──
+  let rawCipher = null
+  let piiCipher = null
+  try {
+    rawCipher = vault.seal(repos, personId, JSON.stringify({
+      text: extracted.text,
+      summary: extracted.summary || '',
+      entities: extracted.entities || {},
+    }))
+    piiCipher = vault.sealTokens(repos, personId, safe.tokens)
+  } catch (err) {
+    log.warn('保险箱不可用，本条记录只保留脱敏文本', { personId, error: err.message })
+  }
 
   const episode = repos.episode.insert({
     personId,
     ts: now,
     kind: 'note',
-    text: extracted.text,
+    text: safe.value.text,
     tags: extracted.tags,
-    entities: extracted.entities,
-    summary: extracted.summary,
+    entities: safe.value.entities,
+    summary: safe.value.summary,
     source,
     extractor: extracted.extractor,
     confidence: 0.9,
+    // 脱敏审计：这条记录被抹掉了什么，用户随时可查
+    redacted: true,
+    redaction: { hits: safe.hits, sealed: !!rawCipher },
+    rawCipher,
+    piiCipher,
   })
 
   const factChanges = []
@@ -52,7 +83,9 @@ function recordEpisode(repos, personId, extracted, source = 'manual') {
       factChanges.push({ key: f.key, action: 'kept', before: before.value, after: before.value })
       continue
     }
-    repos.fact.upsert(personId, f.key, f.value, {
+    // 事实值同样是用户写的，一样要脱敏
+    const value = typeof f.value === 'string' ? redactDeep(f.value).value : f.value
+    repos.fact.upsert(personId, f.key, value, {
       confidence: Math.max(f.confidence, before ? before.confidence * 0.9 : 0),
       source: 'user_record',
       dim: f.key,
@@ -63,9 +96,9 @@ function recordEpisode(repos, personId, extracted, source = 'manual') {
     factChanges.push({
       key: f.key,
       label: labelOf(f.key),
-      action: before ? (before.value === f.value ? 'confirmed' : 'updated') : 'created',
+      action: before ? (before.value === value ? 'confirmed' : 'updated') : 'created',
       before: before?.value ?? null,
-      after: f.value,
+      after: value,
     })
   }
 
@@ -101,14 +134,14 @@ function computeTraits(repos, personId) {
     topTags,
     gatherCount,
     acceptRate,
-    // 人格描述：给前端展示「你的硅基体现在有多像你」
+    // 人格描述：给前端展示「执笔现在有多像你」
     personaHints: buildPersonaHints({ eps, topTags, acceptRate, gatherCount }),
   }
 }
 
 function buildPersonaHints({ eps, topTags, acceptRate, gatherCount }) {
   const hints = []
-  if (eps.length === 0) return ['还没有记录，你的硅基体还是一张白纸']
+  if (eps.length === 0) return ['还没有记录，执笔对你还一无所知']
 
   const tags = topTags.map(t => t[0])
   if (tags.includes('胃敏感') && (tags.includes('重辣') || tags.includes('微辣'))) {
@@ -118,14 +151,14 @@ function buildPersonaHints({ eps, topTags, acceptRate, gatherCount }) {
   if (gatherCount >= 3) hints.push('你是熟人局的常客，组局偏好已经比较稳定')
   if (gatherCount === 0 && eps.length > 5) hints.push('你记录了很多一个人吃的饭，社交场景的记录偏少')
   if (acceptRate !== null && acceptRate < 0.4) hints.push('你对推荐挑得比较细，说明现在的推荐还不够准')
-  if (acceptRate !== null && acceptRate > 0.8) hints.push('你采纳率很高，硅基体已经开始摸到你的口味了')
+  if (acceptRate !== null && acceptRate > 0.8) hints.push('你采纳率很高，执笔已经开始摸到你的口味了')
   if (eps.length >= 10) hints.push(`已经积累 ${eps.length} 条记忆，可以开始做跨场景推荐`)
 
   return hints.slice(0, 4)
 }
 
 /**
- * 编译硅基体上下文。
+ * 编译人格包上下文。
  * @param {object} repos
  * @param {string} personId
  * @param {{intentType?: string, limit?: number}} opts

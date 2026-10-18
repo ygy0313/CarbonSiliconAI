@@ -12,7 +12,7 @@
 
   <view class="card card-primary mt-24">
     <view class="row between">
-      <text class="t-mini">硅基体完整度</text>
+      <text class="t-mini">档案完整度</text>
       <text class="t-green t-title">{{completenessPct}}%</text>
     </view>
     <view class="bar mt-16">
@@ -65,7 +65,7 @@
       </view>
     </view>
   </view>
-  <view class="empty" wx:else>还没有记录。你的硅基体还是一张白纸。</view>
+  <view class="empty" wx:else>还没有记录。执笔对你还一无所知。</view>
 
   <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
 

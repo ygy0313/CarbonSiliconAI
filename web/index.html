@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f2e8" />
+  <title>起居注 · 一个人的档案</title>
+  <meta name="description" content="记下你怎么活，替你安排下一步。以人为单位，把行为、判断、记忆编成可调用的档案。" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23f7f2e8'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='%238c2f24' font-family='serif'>注</text></svg>" />
+</head>
+<body>
+  <div id="app">
+    <div class="empty">正在启卷…</div>
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <div class="tabbar-inner">
+      <a class="tab" href="#/home" data-tab="home"><span class="tab-icon">☯</span>今日</a>
+      <a class="tab" href="#/ask" data-tab="ask"><span class="tab-icon">✎</span>问事</a>
+      <a class="tab" href="#/archive" data-tab="archive"><span class="tab-icon">册</span>档案</a>
+      <a class="tab" href="#/grant" data-tab="grant"><span class="tab-icon">契</span>授权</a>
+    </div>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

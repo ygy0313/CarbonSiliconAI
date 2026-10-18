@@ -1,8 +1,8 @@
 {
-  "name": "silicon-memory-server",
+  "name": "qijuzhu-server",
   "version": "0.1.0",
   "private": true,
-  "description": "硅基记忆体 · 个人 Agent 编排服务（零依赖）",
+  "description": "起居注 · 一个人的档案（编排服务）",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

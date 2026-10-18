@@ -10,6 +10,19 @@ const PERSON = 'p_smoke_' + Date.now().toString(36)
 let pass = 0
 let fail = 0
 
+// 等服务就绪：CI 里服务器刚拉起时，首个请求可能撞上种子数据写入
+async function waitReady(timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${BASE}/health`)
+      if (res.ok) return true
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 300))
+  }
+  throw new Error(`服务 ${BASE} 在 ${timeoutMs}ms 内未就绪`)
+}
+
 function ok(name, detail = '') {
   pass += 1
   console.log(`  ✓ ${name}${detail ? '  ' + detail : ''}`)
@@ -35,6 +48,9 @@ async function call(path, method = 'GET', body) {
 
 async function main() {
   console.log(`\n冒烟测试 → ${BASE}\n`)
+
+  // CI 里服务器刚拉起时，首个请求可能撞上种子写入，先等就绪再开跑
+  await waitReady()
 
   // ── 基础设施 ──
   const health = await call('/health')
