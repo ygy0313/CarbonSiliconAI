@@ -1,0 +1,82 @@
+.plan-head { padding-top: 16rpx; }
+
+.why-row { display: flex; flex-direction: row; align-items: flex-start; gap: 10rpx; }
+.why-dot { color: var(--amber); font-size: 28rpx; line-height: 1.5; }
+.why-text { font-size: 25rpx; color: var(--text-2); line-height: 1.55; flex: 1; }
+
+/* 竖向时间线 */
+.tl-row { display: flex; flex-direction: row; gap: 18rpx; }
+.tl-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20rpx;
+  flex-shrink: 0;
+}
+.tl-node {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--amber);
+  margin-top: 12rpx;
+  flex-shrink: 0;
+}
+.tl-line {
+  width: 2rpx;
+  flex: 1;
+  background: rgba(245, 185, 66, 0.25);
+  margin: 6rpx 0;
+}
+.tl-body {
+  flex: 1;
+  padding-bottom: 26rpx;
+  display: flex;
+  flex-direction: column;
+}
+.tl-time { font-size: 24rpx; color: var(--amber); }
+.tl-text { font-size: 26rpx; color: var(--text); line-height: 1.5; margin-top: 4rpx; }
+
+.part { padding: 24rpx; }
+.part:active { background: var(--surface-2); }
+
+/* 待办 */
+.todo {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.todo:last-child { border-bottom: none; }
+.check {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #07120c;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+.check-on { background: var(--green); border-color: var(--green); }
+.todo-text { font-size: 26rpx; color: var(--text); line-height: 1.5; flex: 1; }
+.todo-done .todo-text { color: var(--text-3); text-decoration: line-through; }
+
+.bottom-space { height: 160rpx; }
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(11, 15, 20, 0.96);
+  border-top: 1rpx solid var(--line);
+}
+.footer-btn { flex: 1; }

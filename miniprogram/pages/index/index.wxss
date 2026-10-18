@@ -1,0 +1,66 @@
+.dim-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+.dim {
+  width: 56rpx;
+  height: 14rpx;
+  border-radius: 4rpx;
+  background: rgba(255, 255, 255, 0.07);
+}
+.dim.on { background: #4ade80; }
+.dim.weak { background: rgba(245, 185, 66, 0.6); }
+.dim.off { background: rgba(255, 255, 255, 0.07); }
+
+.hint-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 10rpx 0;
+}
+.hint-row .dot { margin-top: 14rpx; }
+
+.quick-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+}
+.quick {
+  flex: 1;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 26rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 130rpx;
+}
+.quick:active { background: var(--surface-2); }
+.quick-label {
+  font-size: 27rpx;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+}
+.quick-arrow {
+  font-size: 24rpx;
+  color: var(--text-3);
+  margin-top: 14rpx;
+}
+
+.services-entry {
+  margin-top: 16rpx;
+  padding: 22rpx 24rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 16rpx;
+}
+
+.memory {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.memory:last-child { border-bottom: none; padding-bottom: 0; }
+.memory:first-child { padding-top: 0; }

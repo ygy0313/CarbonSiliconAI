@@ -1,0 +1,43 @@
+.record-input {
+  height: 220rpx;
+  line-height: 1.6;
+}
+
+.result { padding-top: 8rpx; }
+
+.change {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.change:last-child { border-bottom: none; }
+.change-label { font-size: 25rpx; color: var(--text-2); width: 160rpx; flex-shrink: 0; }
+.change-val { flex: 1; display: flex; flex-direction: row; gap: 8rpx; align-items: center; }
+.change-before { font-size: 24rpx; color: var(--text-3); text-decoration: line-through; }
+
+.conflict {
+  padding: 20rpx 24rpx;
+  border: 1rpx solid rgba(245, 185, 66, 0.35);
+  border-radius: 14rpx;
+  background: var(--amber-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hint-box {
+  padding: 20rpx 24rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 14rpx;
+}
+.hint-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 8rpx 0;
+}
+.hint-row .dot { margin-top: 14rpx; }

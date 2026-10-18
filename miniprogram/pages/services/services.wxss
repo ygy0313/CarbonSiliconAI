@@ -1,0 +1,26 @@
+.stat {
+  flex: 1;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 22rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.svc { padding: 24rpx; }
+.svc-icon {
+  font-size: 34rpx;
+  width: 56rpx;
+  text-align: center;
+}
+.svc-name { font-size: 30rpx; font-weight: 600; color: var(--text); }
+
+.need-label { margin-right: 12rpx; }
+
+.note {
+  padding: 20rpx 24rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 14rpx;
+}

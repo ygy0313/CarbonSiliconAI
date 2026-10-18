@@ -1,0 +1,127 @@
+<view class="chat-page">
+
+  <view class="chat-body">
+
+    <view wx:if="{{phase === 'idle'}}" class="intro">
+      <view class="t-hero">你现在，想做什么？</view>
+      <view class="t-sub mt-16">说一句就行。它会先想清楚，再去调对应的人和服务。</view>
+
+      <view class="examples mt-32">
+        <view class="example" bindtap="sendExample" data-text="今天中午吃什么，一个人，别太辣">今天中午吃什么，一个人，别太辣</view>
+        <view class="example" bindtap="sendExample" data-text="周六想和朋友组个局，6个人，预算150">周六想和朋友组个局，6 个人，预算 150</view>
+        <view class="example" bindtap="sendExample" data-text="最近胃不太舒服，晚上该吃点什么">最近胃不太舒服，晚上该吃点什么</view>
+      </view>
+    </view>
+
+    <view wx:if="{{phase !== 'idle'}}">
+      <view class="row between mb-8">
+        <text class="t-mini">编排过程</text>
+        <text class="t-mini">{{visibleTrace.length}} 步</text>
+      </view>
+
+      <view class="trace">
+        <view wx:for="{{visibleTrace}}" wx:key="step" class="trace-item">
+          <text class="trace-badge">{{item.badge}}</text>
+          <view class="grow trace-main">
+            <text class="trace-label">{{item.label}}</text>
+            <text class="trace-detail" wx:if="{{item.detail}}">{{item.detail}}</text>
+          </view>
+          <text class="t-mini trace-ms" wx:if="{{item.ms}}">{{item.ms}}ms</text>
+        </view>
+        <view class="trace-pending" wx:if="{{phase === 'thinking'}}">
+          <view class="dot dot-warn"></view>
+          <text class="t-mini">正在编排…</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{phase === 'done'}}">
+
+      <view class="summary">
+        <text class="t-mini">结论</text>
+        <text class="summary-text">{{summary}}</text>
+        <text class="t-mini mt-8">{{totalMs}}ms · {{cards.length}} 条建议</text>
+      </view>
+
+      <view wx:for="{{cards}}" wx:key="id" class="{{item.cls}} result-card" bindtap="openPlan" data-index="{{index}}">
+        <view class="row between">
+          <text class="{{item.tagCls}}">{{item.kindLabel}}</text>
+          <text class="t-mini">{{item.source}}</text>
+        </view>
+
+        <view class="row between mt-16" wx:if="{{item.kind === 'plan'}}">
+          <text class="t-title grow">{{item.title}}</text>
+          <text class="t-mini">{{item.dateStr}}</text>
+        </view>
+        <text class="t-title mt-16" wx:else>{{item.title}}</text>
+
+        <text class="t-sub mt-8">{{item.desc}}</text>
+
+        <view class="why mt-16" wx:if="{{item.why.length}}">
+          <view wx:for="{{item.why}}" wx:for-item="reason" wx:key="*this" class="why-row">
+            <text class="why-dot">·</text>
+            <text class="why-text">{{reason}}</text>
+          </view>
+        </view>
+
+        <view class="timeline mt-16" wx:if="{{item.timeline.length}}">
+          <view wx:for="{{item.timeline}}" wx:for-item="t" wx:key="time" class="tl-row">
+            <text class="tl-time mono">{{t.time}}</text>
+            <text class="tl-text">{{t.text}}</text>
+          </view>
+        </view>
+
+        <view class="row between mt-16" wx:if="{{item.kind === 'plan'}}">
+          <text class="t-mini">{{item.headcount}} 人 · 人均 {{item.totalPerPerson}} 元 · {{item.todos.length}} 项待办</text>
+          <text class="t-mini t-amber">看完整方案 →</text>
+        </view>
+
+        <view class="evidence mt-12" wx:if="{{item.evidence.length}}">
+          <text class="t-mini">依据：{{item.evidence[0].text}}</text>
+        </view>
+
+        <view class="actions mt-16" wx:if="{{item.kind !== 'note' && item.kind !== 'context'}}">
+          <view class="act act-yes" catchtap="accept" data-index="{{index}}">
+            <text wx:if="{{item.fbState === 'accept'}}">已采纳</text>
+            <text wx:else>就这个</text>
+          </view>
+          <view class="act act-no" catchtap="reject" data-index="{{index}}">
+            <text wx:if="{{item.fbState === 'reject'}}">已否决</text>
+            <text wx:else>不要这个</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="aux" wx:if="{{aux.length}}">
+        <view wx:for="{{aux}}" wx:key="id" class="aux-item">
+          <text class="aux-title">{{item.title}}</text>
+          <text class="aux-desc">{{item.desc}}</text>
+        </view>
+      </view>
+
+      <view class="btn btn-ghost mt-24" bindtap="reset">再问一件别的事</view>
+      <view class="t-mini mt-16" wx:if="{{offline}}">{{errorMsg}}</view>
+    </view>
+
+  </view>
+
+  <view class="composer">
+    <scroll-view class="chips-scroll" scroll-x="true">
+      <view class="chips">
+        <view wx:for="{{tagOptions}}" wx:key="*this"
+              class="{{item.cls}}"
+              bindtap="toggleTag" data-tag="{{item.label}}">{{item.label}}</view>
+      </view>
+    </scroll-view>
+    <view class="row gap-12">
+      <textarea class="composer-input" value="{{input}}" bindinput="onInput"
+                placeholder="说说你现在的情况…" placeholder-class="placeholder"
+                maxlength="200" show-confirm-bar="false" />
+      <view class="send {{phase === 'thinking' ? 'send-busy' : ''}}" bindtap="send">
+        <text wx:if="{{phase === 'thinking'}}">…</text>
+        <text wx:else>发送</text>
+      </view>
+    </view>
+  </view>
+
+</view>

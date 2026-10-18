@@ -1,0 +1,78 @@
+<view class="container">
+
+  <view class="row between">
+    <view>
+      <view class="t-title">{{name}} 的档案</view>
+      <view class="t-mini mt-8">这是硅基体的燃料。填得越准，它越像你。</view>
+    </view>
+    <view class="pct-box">
+      <text class="t-green t-title">{{completenessPct}}%</text>
+    </view>
+  </view>
+
+  <view class="bar mt-16">
+    <view class="bar-fill" style="width:{{completenessPct}}%"></view>
+  </view>
+
+  <view class="t-mini mt-8" wx:if="{{offline}}">离线演示 · 修改不会保存</view>
+
+  <view wx:if="{{conflicts.length}}" class="conflict-box mt-24">
+    <view class="t-amber t-sub">有 {{conflicts.length}} 件事跟你原来的说法对不上</view>
+    <view wx:for="{{conflicts}}" wx:key="id" class="conflict-item" bindtap="resolve" data-id="{{item.id}}">
+      <text class="t-body">{{item.question}}</text>
+      <text class="t-mini mt-8">点这里定一下 →</text>
+    </view>
+  </view>
+
+  <view wx:for="{{groups}}" wx:key="name">
+    <view class="section">
+      <text class="section-title">{{item.name}}</text>
+      <text class="section-more">{{item.count}} 项</text>
+    </view>
+    <view class="card">
+      <view wx:for="{{item.items}}" wx:for-item="f" wx:key="key" class="fact" bindtap="editFact" data-key="{{f.key}}">
+        <view class="fact-main">
+          <view class="row between">
+            <text class="fact-label">{{f.label}}</text>
+            <text class="fact-value {{f.empty ? 'is-empty' : ''}}">{{f.value}}</text>
+          </view>
+          <view class="row between mt-8">
+            <view class="conf-bar">
+              <view class="conf-fill {{f.weak ? 'conf-weak' : ''}}" style="width:{{f.pct}}%"></view>
+            </view>
+            <text class="t-mini">{{f.pct}}%</text>
+          </view>
+          <text class="t-mini mt-8" wx:if="{{f.note}}">{{f.note}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">记忆</text>
+    <text class="section-more">{{memories.length}} 条</text>
+  </view>
+  <view class="card" wx:if="{{memories.length}}">
+    <view wx:for="{{memories}}" wx:key="id" class="mem">
+      <view class="dot dot-idle"></view>
+      <view class="grow">
+        <text class="t-body">{{item.summary}}</text>
+        <text class="t-mini mt-8">{{item.when}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="empty" wx:else>还没有记忆。</view>
+
+  <view class="section">
+    <text class="section-title">开发设置</text>
+    <text class="section-more" bindtap="toggleSettings">{{showSettings ? '收起' : '展开'}}</text>
+  </view>
+  <view class="card" wx:if="{{showSettings}}">
+    <view class="row between" bindtap="saveBase">
+      <text class="t-sub">服务地址</text>
+      <text class="t-mini mono">{{apiBase}}</text>
+    </view>
+    <view class="t-mini mt-16">真机调试请填电脑的局域网 IP，如 http://192.168.1.10:8787</view>
+  </view>
+
+</view>

@@ -1,0 +1,50 @@
+<view class="container">
+
+  <view class="t-title">服务市场</view>
+  <view class="t-sub mt-8">这些是被你「调用」的服务，不是要你一个个打开的 App。它们看你的档案来决定怎么回答。</view>
+
+  <view class="row gap-16 mt-24">
+    <view class="stat">
+      <text class="t-title t-green">{{enabled}}</text>
+      <text class="t-mini">已接入</text>
+    </view>
+    <view class="stat">
+      <text class="t-title">0</text>
+      <text class="t-mini">元 / 次</text>
+    </view>
+    <view class="stat">
+      <text class="t-title">3</text>
+      <text class="t-mini">类意图</text>
+    </view>
+  </view>
+
+  <view class="t-mini mt-24" wx:if="{{offline}}">离线：显示内置服务清单</view>
+
+  <view wx:for="{{services}}" wx:key="id" class="card svc">
+    <view class="row between">
+      <view class="row gap-12">
+        <text class="svc-icon">{{item.icon}}</text>
+        <view class="col">
+          <text class="svc-name">{{item.name}}</text>
+          <text class="t-mini">{{item.service}}</text>
+        </view>
+      </view>
+      <text class="tag {{item.isEntry ? 'tag-green' : ''}}">{{item.intents}}</text>
+    </view>
+
+    <text class="t-sub mt-16">{{item.description}}</text>
+
+    <view class="row wrap mt-16" wx:if="{{item.needs.length}}">
+      <text class="t-mini need-label">需要</text>
+      <text wx:for="{{item.needs}}" wx:for-item="n" wx:key="*this" class="tag">{{n}}</text>
+    </view>
+    <view class="row mt-8" wx:else>
+      <text class="t-mini">不依赖你的档案，纯公共数据</text>
+    </view>
+  </view>
+
+  <view class="note mt-24">
+    <text class="t-mini">想接入自己的服务？在 server/src/agents/ 下新建一个文件，声明 needs 和 provides，编排器会自动把它编进依赖图 —— 不用改一行编排代码。</text>
+  </view>
+
+</view>

@@ -1,0 +1,32 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/plan/plan",
+    "pages/record/record",
+    "pages/profile/profile",
+    "pages/services/services"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#0B0F14",
+    "navigationBarTitleText": "硅基记忆体",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0B0F14",
+    "navigationStyle": "default"
+  },
+  "tabBar": {
+    "color": "#5C6B7A",
+    "selectedColor": "#4ADE80",
+    "backgroundColor": "#0E141B",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "硅基体" },
+      { "pagePath": "pages/record/record", "text": "记录" },
+      { "pagePath": "pages/profile/profile", "text": "档案" }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

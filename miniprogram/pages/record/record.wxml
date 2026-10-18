@@ -1,0 +1,64 @@
+<view class="container">
+
+  <view class="t-title">今天发生了什么</view>
+  <view class="t-sub mt-8">随便写。它会把这句话拆成事实和记忆，存进你的档案。</view>
+
+  <textarea class="input mt-24 record-input" value="{{text}}" bindinput="onInput"
+            placeholder="比如：中午一个人吃了羊肉面，晚上胃有点胀"
+            placeholder-class="placeholder" maxlength="300" show-confirm-bar="false" />
+
+  <view class="row wrap mt-16">
+    <view wx:for="{{tagOptions}}" wx:key="label" class="{{item.cls}}"
+          bindtap="toggleTag" data-tag="{{item.label}}">{{item.label}}</view>
+  </view>
+
+  <view class="btn btn-primary mt-16" bindtap="save">
+    <text wx:if="{{saving}}">正在拆解…</text>
+    <text wx:else>存进档案</text>
+  </view>
+
+  <view wx:if="{{result}}" class="result mt-32">
+    <view class="row between">
+      <text class="t-mini">它的理解</text>
+      <text class="t-mini t-green">{{result.completeness}}% 完整度</text>
+    </view>
+    <view class="card mt-16">
+      <text class="t-body">{{result.summary}}</text>
+      <view class="row wrap mt-8" wx:if="{{result.tags.length}}">
+        <text wx:for="{{result.tags}}" wx:key="*this" class="tag tag-green">{{item}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.changes.length}}">
+      <text class="t-mini">改动了这些事实</text>
+      <view class="card mt-16">
+        <view wx:for="{{result.changes}}" wx:key="key" class="change">
+          <text class="change-label">{{item.label}}</text>
+          <view class="change-val">
+            <text class="change-before" wx:if="{{item.arrow}}">{{item.before}} →</text>
+            <text class="t-green">{{item.after}}</text>
+          </view>
+          <text class="tag">{{item.actionLabel}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{result.conflicts.length}}" class="conflict">
+      <text class="t-amber t-sub">有 {{result.conflicts.length}} 处跟你原来的说法对不上，去档案里确认一下</text>
+      <view class="btn btn-ghost btn-sm mt-16" bindtap="goProfile">去核对</view>
+    </view>
+
+    <view class="hint-box mt-16" wx:if="{{result.hints.length}}">
+      <view wx:for="{{result.hints}}" wx:key="*this" class="hint-row">
+        <view class="dot"></view>
+        <text class="t-sub grow">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="t-mini mt-16">现在共有 {{result.memoryCount}} 条记忆</view>
+    <view class="btn btn-ghost mt-16" bindtap="clearResult">继续记</view>
+  </view>
+
+  <view class="t-mini mt-32" wx:if="{{offline}}">离线模式：数据只存在本地演示，不会真的写档案</view>
+
+</view>

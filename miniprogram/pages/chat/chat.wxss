@@ -1,0 +1,192 @@
+.chat-page {
+  min-height: 100vh;
+  padding-bottom: calc(260rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.chat-body {
+  padding: 32rpx;
+}
+
+.intro { padding-top: 60rpx; }
+
+.examples { display: flex; flex-direction: column; gap: 16rpx; }
+.example {
+  padding: 26rpx 28rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  font-size: 27rpx;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.example:active { background: var(--surface-2); color: var(--text); }
+
+/* ── 编排轨迹 ── */
+.trace {
+  border-left: 2rpx solid var(--line);
+  padding-left: 24rpx;
+  margin-left: 8rpx;
+}
+.trace-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 12rpx 0;
+}
+.trace-badge {
+  font-size: 20rpx;
+  color: var(--text-3);
+  border: 1rpx solid var(--line);
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+  line-height: 1.5;
+}
+.trace-main { display: flex; flex-direction: column; }
+.trace-label { font-size: 26rpx; color: var(--text); line-height: 1.45; }
+.trace-detail { font-size: 22rpx; color: var(--text-3); margin-top: 4rpx; line-height: 1.4; }
+.trace-ms { flex-shrink: 0; margin-top: 4rpx; }
+
+.trace-pending {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 0;
+}
+
+/* ── 结论 ── */
+.summary {
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 24rpx 0 20rpx;
+  display: flex;
+  flex-direction: column;
+}
+.summary-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+  margin-top: 10rpx;
+}
+
+/* ── 结果卡 ── */
+.result-card { margin-bottom: 20rpx; }
+
+.why { display: flex; flex-direction: column; gap: 8rpx; }
+.why-row { display: flex; flex-direction: row; align-items: flex-start; gap: 10rpx; }
+.why-dot { color: var(--green); font-size: 28rpx; line-height: 1.5; }
+.why-text { font-size: 25rpx; color: var(--text-2); line-height: 1.55; flex: 1; }
+
+.evidence {
+  padding: 12rpx 16rpx;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10rpx;
+  border-left: 3rpx solid rgba(245, 185, 66, 0.5);
+}
+
+/* ── 时间线 ── */
+.timeline {
+  border-left: 2rpx solid rgba(245, 185, 66, 0.35);
+  padding-left: 20rpx;
+  margin-left: 6rpx;
+}
+.tl-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 6rpx 0;
+}
+.tl-time {
+  font-size: 22rpx;
+  color: var(--amber);
+  flex-shrink: 0;
+  width: 88rpx;
+}
+.tl-text { font-size: 24rpx; color: var(--text-2); flex: 1; line-height: 1.5; }
+
+/* ── 操作 ── */
+.actions { display: flex; flex-direction: row; gap: 12rpx; }
+.act {
+  flex: 1;
+  height: 66rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  font-size: 25rpx;
+}
+.act-yes {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1rpx solid rgba(74, 222, 128, 0.35);
+}
+.act-no {
+  background: transparent;
+  color: var(--text-3);
+  border: 1rpx solid var(--line);
+}
+.act:active { opacity: 0.7; }
+
+/* ── 辅助信息 ── */
+.aux {
+  margin-top: 8rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 14rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.aux-item { display: flex; flex-direction: column; }
+.aux-title { font-size: 24rpx; color: var(--text-2); font-weight: 500; }
+.aux-desc { font-size: 22rpx; color: var(--text-3); line-height: 1.5; margin-top: 4rpx; }
+
+/* ── 输入区 ── */
+.composer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 15, 20, 0.96);
+  border-top: 1rpx solid var(--line);
+  padding: 16rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  backdrop-filter: blur(12rpx);
+  z-index: 10;
+}
+.chips-scroll { white-space: nowrap; width: 100%; margin-bottom: 4rpx; }
+.chips { display: flex; flex-direction: row; padding: 4rpx 0; }
+.chips .chip { flex-shrink: 0; }
+
+.composer-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 20rpx 22rpx;
+  color: var(--text);
+  font-size: 27rpx;
+  height: 76rpx;
+  line-height: 36rpx;
+  box-sizing: border-box;
+}
+.send {
+  width: 120rpx;
+  height: 76rpx;
+  border-radius: 16rpx;
+  background: var(--green);
+  color: #07120c;
+  font-size: 27rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.send-busy { background: var(--surface-2); color: var(--text-3); }

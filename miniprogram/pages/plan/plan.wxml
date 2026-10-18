@@ -1,0 +1,73 @@
+<view class="container" wx:if="{{loaded}}">
+
+  <view class="plan-head">
+    <text class="t-mini">{{plan.dateStr}} · {{plan.headcount}} 人</text>
+    <view class="t-hero mt-8">{{plan.title}}</view>
+    <text class="t-sub mt-8">{{plan.desc}}</text>
+  </view>
+
+  <view class="card card-plan mt-24">
+    <text class="t-mini">这么排的原因</text>
+    <view wx:for="{{plan.why}}" wx:key="*this" class="why-row mt-8">
+      <text class="why-dot">·</text>
+      <text class="why-text">{{item}}</text>
+    </view>
+    <view class="divider"></view>
+    <view class="row between">
+      <text class="t-sub">人均合计</text>
+      <text class="t-title t-amber">{{plan.totalPerPerson}} 元</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">当天怎么走</text>
+  </view>
+  <view class="card">
+    <view wx:for="{{plan.timeline}}" wx:key="time" class="tl-row">
+      <view class="tl-rail">
+        <view class="tl-node"></view>
+        <view class="tl-line" wx:if="{{index < plan.timeline.length - 1}}"></view>
+      </view>
+      <view class="tl-body">
+        <text class="tl-time mono">{{item.time}}</text>
+        <text class="tl-text">{{item.text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">由谁提供</text>
+    <text class="section-more">{{parts.length}} 个服务</text>
+  </view>
+  <view wx:for="{{parts}}" wx:key="id" class="card part" bindtap="replacePart" data-id="{{item.id}}">
+    <view class="row between">
+      <text class="t-title grow">{{item.title}}</text>
+      <text class="t-mini">{{item.source}}</text>
+    </view>
+    <text class="t-sub mt-8">{{item.desc}}</text>
+    <view wx:for="{{item.why}}" wx:for-item="reason" wx:key="*this" class="why-row mt-8">
+      <text class="why-dot">·</text>
+      <text class="why-text">{{reason}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">要办的事</text>
+    <text class="section-more">{{doneCount}} / {{todos.length}}</text>
+  </view>
+  <view class="card">
+    <view wx:for="{{todos}}" wx:key="key" class="{{item.cls}}" bindtap="toggleTodo" data-index="{{index}}">
+      <view class="check {{item.done ? 'check-on' : ''}}">
+        <text wx:if="{{item.done}}">✓</text>
+      </view>
+      <text class="todo-text">{{item.text}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-space"></view>
+  <view class="footer">
+    <view class="btn btn-ghost footer-btn" bindtap="back">回去改</view>
+    <view class="btn btn-primary footer-btn" bindtap="acceptPlan">就这么定</view>
+  </view>
+
+</view>

@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: 语法检查 + 端到端冒烟
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 全部 JS 语法检查
+        run: |
+          fail=0
+          for f in $(git ls-files '*.js'); do
+            node --check "$f" || { echo "语法错误: $f"; fail=1; }
+          done
+          exit $fail
+
+      - name: 小程序 WXML 体检
+        run: node miniprogram/scripts/check-wxml.js
+
+      - name: 启动后端
+        run: |
+          cd server
+          node src/index.js > /tmp/server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8787/health > /dev/null; then
+              echo "服务已就绪"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "服务启动失败，日志："
+          cat /tmp/server.log
+          exit 1
+
+      - name: 端到端冒烟（33 项）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/smoke.js
+
+      - name: 失败时输出服务日志
+        if: failure()
+        run: cat /tmp/server.log || true

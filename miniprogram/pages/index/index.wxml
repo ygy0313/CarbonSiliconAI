@@ -1,0 +1,72 @@
+<view class="container">
+
+  <view class="row gap-16 mt-8">
+    <view class="avatar">{{initial}}</view>
+    <view class="grow">
+      <view class="t-hero">{{name}}</view>
+      <view class="t-sub">{{identity}}</view>
+    </view>
+  </view>
+
+  <view class="t-mini mt-8" wx:if="{{offline}}">离线演示数据 · 后端未连接</view>
+
+  <view class="card card-primary mt-24">
+    <view class="row between">
+      <text class="t-mini">硅基体完整度</text>
+      <text class="t-green t-title">{{completenessPct}}%</text>
+    </view>
+    <view class="bar mt-16">
+      <view class="bar-fill" style="width:{{completenessPct}}%"></view>
+    </view>
+    <view class="dim-grid mt-24">
+      <view wx:for="{{dims}}" wx:key="key" class="dim {{item.cls}}"></view>
+    </view>
+    <view class="t-mini mt-16">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">它现在这样理解你</text>
+    <text class="section-more" bindtap="goProfile">去核对</text>
+  </view>
+  <view class="card">
+    <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
+      <view class="dot"></view>
+      <text class="t-body grow">{{item}}</text>
+    </view>
+    <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">现在要做什么</text>
+    <text class="section-more" bindtap="goChatEmpty">直接说 →</text>
+  </view>
+  <view class="quick-grid">
+    <view wx:for="{{quick}}" wx:key="key" class="quick" bindtap="goChat" data-text="{{item.text}}">
+      <text class="quick-label">{{item.label}}</text>
+      <text class="quick-arrow">→</text>
+    </view>
+  </view>
+  <view class="services-entry" bindtap="goServices">
+    <text class="t-sub">已接入 7 个生活服务 · 查看服务市场</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">最近的记忆</text>
+    <text class="section-more" bindtap="goProfile">全部</text>
+  </view>
+  <view class="card" wx:if="{{recent.length}}">
+    <view wx:for="{{recent}}" wx:key="id" class="memory">
+      <view class="row between">
+        <text class="t-body grow">{{item.summary}}</text>
+        <text class="t-mini">{{item.when}}</text>
+      </view>
+      <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
+        <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="empty" wx:else>还没有记录。你的硅基体还是一张白纸。</view>
+
+  <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
+
+</view>
