@@ -1,9 +1,14 @@
-# 硅基记忆体
+# 硅基记忆体 · CarbonSiliconAI
+
+[![ci](https://github.com/ygy0313/CarbonSiliconAI/actions/workflows/ci.yml/badge.svg)](https://github.com/ygy0313/CarbonSiliconAI/actions/workflows/ci.yml)
 
 > 一个人就是一个 Agent。把个体的行为、判断、履历、记忆编译成可执行的「硅基体」，
 > 让 App / Agent / Skill 反过来围着这个人转。
 
 **当前状态**：MVP 可运行。两条流程已跑通 —— 吃什么（给您请安）、组个局（剧本杀工坊）。全流程 0 元。
+
+- 仓库：<https://github.com/ygy0313/CarbonSiliconAI>
+- 克隆：`git clone git@github.com:ygy0313/CarbonSiliconAI.git`
 
 ---
 

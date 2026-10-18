@@ -6,12 +6,14 @@
 
 | 项 | 值 |
 |---|---|
-| 工程名 | 硅基记忆体（Silicon Memory） |
+| 工程名 | 硅基记忆体（CarbonSiliconAI） |
 | 本地目录 | `~/WorkBuddy/硅基记忆体` |
+| GitHub | <https://github.com/ygy0313/CarbonSiliconAI>（公开）SSH：`git@github.com:ygy0313/CarbonSiliconAI.git` |
+| 默认分支 | `main`（已建 upstream） |
 | 类型 | 微信原生小程序 + 零依赖 Node 后端 |
 | 后端端口 | 8787 |
 | 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
-| 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite） |
+| 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
 
 ## 启动
 
