@@ -1,6 +1,7 @@
 // 内核入口：serve（服务）/ bench（压测）/ selftest（自检）
 //
 // 不引测试框架，自检就是 main 里的断言。内核只有纯函数，这样够用。
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
