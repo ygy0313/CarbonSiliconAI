@@ -70,6 +70,25 @@ function exportArchive(repos, personId, opts = {}) {
       acceptRate: silicon.traits.acceptRate,
     },
     voice: silicon.voice,
+    // 经验层：事实是「你是谁」，经验是「你怎么办事」。后者才是真正带得走的资产。
+    experiences: repos.experience.byPerson(personId, { limit: 2000 }).map(e => ({
+      id: e.id,
+      rule: e.rule,
+      trigger: e.trigger || {},
+      situation: e.situation || {},
+      action: e.action || {},
+      outcome: e.outcome || {},
+      effectiveness: e.effectiveness,
+      applied: e.applied || 0,
+      followed: e.followed || 0,
+      status: e.status,
+      evidence: e.evidence || [],
+      source: e.source,
+      createdAt: e.createdAt,
+      updatedAt: e.updatedAt,
+    })),
+    // 评估标准一并带走：换一个 App 继续用，判「什么算有效」的口径不能变
+    criteria: repos.criteria.get(personId) || null,
     episodes: episodes.map(e => ({
       id: e.id,
       ts: e.ts,
@@ -120,6 +139,11 @@ function exportArchive(repos, personId, opts = {}) {
         'facts[].confidence': '0-1，随时间半衰期衰减',
         'episodes[].text': '已脱敏文本，PII 已替换为 <手机号1> 这类占位符',
         'episodes[].redaction.hits': '本条记录被抹掉的 PII 类型与数量',
+        'experiences[].rule': '可执行规则（自然语言指令），由反思产出或用户手写',
+        'experiences[].trigger': '触发条件：tags / scene / intent',
+        'experiences[].effectiveness': '0-1，每次应用结果更新一次（单环）',
+        'experiences[].evidence': '溯源，指向具体 invocation/user 事件',
+        'criteria': '评估标准（双环约束点），带版本号与确认时间',
       },
     },
     checksum,
@@ -195,10 +219,47 @@ function importArchive(repos, archive, opts = {}) {
     episodeCount++
   }
 
+  // 经验层恢复：id 重新生成，避免与源档案撞车；证据链保留引用关系
+  let experienceCount = 0
+  for (const x of p.experiences || []) {
+    const doc = {
+      personId,
+      rule: x.rule,
+      trigger: x.trigger || {},
+      situation: x.situation || {},
+      action: x.action || {},
+      outcome: x.outcome || {},
+      effectiveness: Number(x.effectiveness) || 0.5,
+      applied: Number(x.applied) || 0,
+      followed: Number(x.followed) || 0,
+      evidence: Array.isArray(x.evidence) ? x.evidence : [],
+      status: x.status === 'archived' ? 'dormant' : x.status || 'proposed',
+      source: 'restored',
+      loop: 'single',
+      createdAt: x.createdAt || new Date().toISOString(),
+      updatedAt: x.updatedAt || new Date().toISOString(),
+      signature: `restored|${String(x.rule || '').slice(0, 40)}`,
+      applications: [],
+      version: 1,
+    }
+    repos.experience.insert(doc)
+    experienceCount++
+  }
+
+  // 评估标准：只在文件里明确带了「用户已确认」的版本时才恢复，否则用默认值
+  if (p.criteria && p.criteria.confirmedAt) {
+    repos.criteria.upsert(personId, {
+      ...p.criteria,
+      personId,
+      restoredFrom: { exportedAt: archive.exportedAt },
+    })
+  }
+
   return {
     person: { id: person.id, name: person.name },
     factCount,
     episodeCount,
+    experienceCount,
     hadPrompt: typeof p.prompt === 'string',
     hadSealed: !!p.sealed,
   }

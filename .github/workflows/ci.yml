@@ -55,6 +55,31 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-privacy.js
 
+      - name: C++ 内核自检
+        run: |
+          cd core
+          make
+          ./bin/qjz-core selftest
+
+      - name: 启动 C++ 内核
+        run: |
+          core/bin/qjz-core serve 8788 > /tmp/core.log 2>&1 &
+          for i in $(seq 1 15); do
+            if curl -sf http://127.0.0.1:8788/health > /dev/null; then
+              echo "内核已就绪"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "内核启动失败（Node 端会自动降级，但 CI 里要求完整链路），日志："
+          cat /tmp/core.log
+          exit 1
+
+      - name: 经验资产回归（闭环/双环/隔离/双实现同构）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-experience.js
+
       - name: 干支历算自检（26 项）
         run: node server/scripts/verify-ganzhi.js
 

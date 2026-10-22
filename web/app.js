@@ -442,11 +442,114 @@ function viewGrant() {
     </section>`
 }
 
+/* ── 经验资产 ─────────────────────────────────────────── */
+
+const XP_GROUPS = [
+  { key: 'proposed', label: '待确认', hint: '反思挖出来的，还没被验证过。确认后才参与推荐。' },
+  { key: 'active', label: '可用', hint: '已经在用；采纳过的会自动加分。' },
+  { key: 'dormant', label: '休眠', hint: '应用后一直不奏效，已自动降权。可以归档或重新启用。' },
+]
+
+function xpRow(e) {
+  const pct = Math.round((e.effectiveness || 0) * 100)
+  const barColor = pct >= 65 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--ink-3)'
+  const acts = []
+  if (e.status === 'proposed') acts.push(`<button class="btn btn-accent btn-sm" data-act="xp-status" data-id="${esc(e.id)}" data-status="active">确认</button>`)
+  if (e.status === 'active') {
+    acts.push(`<button class="btn btn-ghost btn-sm" data-act="xp-apply" data-id="${esc(e.id)}" data-outcome="worked">用上了</button>`)
+    acts.push(`<button class="btn btn-ghost btn-sm" data-act="xp-apply" data-id="${esc(e.id)}" data-outcome="failed">没成</button>`)
+    acts.push(`<button class="btn btn-ghost btn-sm" data-act="xp-status" data-id="${esc(e.id)}" data-status="dormant">搁置</button>`)
+  }
+  if (e.status === 'dormant') {
+    acts.push(`<button class="btn btn-ghost btn-sm" data-act="xp-status" data-id="${esc(e.id)}" data-status="active">启用</button>`)
+    acts.push(`<button class="btn btn-ghost btn-sm" data-act="xp-status" data-id="${esc(e.id)}" data-status="archived">归档</button>`)
+  }
+  return `
+    <div class="xp-item">
+      <div class="xp-rule">${esc(e.rule)}</div>
+      <div class="xp-meta">
+        <span>${esc(e.flow)}</span>
+        ${e.solidified ? '<span class="xp-badge">已固化</span>' : ''}
+        <span class="xp-src">${esc(e.source === 'reflect' ? '反思产出' : e.source === 'manual' ? '手写' : e.source === 'seed' ? '示例' : e.source)}</span>
+      </div>
+      <div class="xp-bar"><span class="xp-fill" style="width:${pct}%;background:${barColor}"></span></div>
+      <div class="xp-foot">
+        <span class="xp-pct" style="color:${barColor}">有效性 ${pct}%</span>
+        <span class="xp-acts">${acts.join('')}</span>
+      </div>
+    </div>`
+}
+
+function viewAssets() {
+  const a = state.assets
+  const list = state.experiences || []
+  if (!a) return `${masthead('<b>经验</b><br>资产')}<div class="empty">正在算…</div>`
+
+  const groups = XP_GROUPS.map(g => {
+    const rows = list.filter(e => e.status === g.key)
+    if (!rows.length) return ''
+    return `
+      <section class="section">
+        <h2 class="section-title">${g.label} <span class="xp-count">${rows.length}</span></h2>
+        <div class="section-note" style="margin:-4px 0 10px">${g.hint}</div>
+        <div class="panel">${rows.map(xpRow).join('')}</div>
+      </section>`
+  }).join('')
+
+  const next = a.nextAction || {}
+  const c = a.criteria || {}
+  const t = c.thresholds || {}
+
+  return `
+    ${masthead(`<b>${a.total}</b> 条经验<br>其中 ${a.solidified} 条固化`)}
+    <section class="section">
+      <div class="panel xp-summary">
+        <div class="xp-cell"><b>${a.active}</b><span>可用</span></div>
+        <div class="xp-cell"><b>${a.appliedTotal}</b><span>被调用</span></div>
+        <div class="xp-cell"><b>${a.hitRate == null ? '—' : Math.round(a.hitRate * 100) + '%'}</b><span>奏效率</span></div>
+        <div class="xp-cell"><b>${a.avgEffectiveness == null ? '—' : Math.round(a.avgEffectiveness * 100) + '%'}</b><span>平均有效性</span></div>
+      </div>
+      <div class="section-note" style="margin:10px 0 0">
+        近 7 天新增 ${a.growth.last7} 条，近 30 天 ${a.growth.last30} 条。
+        评估标准 v${c.version}，${c.confirmedBy === 'user' ? '你确认过' : '用的是默认口径'}。
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="notice">
+        <b>下一步</b>：${esc(next.text || '继续记录')}
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn btn-accent btn-sm" data-act="reflect">立即提炼</button>
+        </div>
+      </div>
+    </section>
+
+    ${groups || '<section class="section"><div class="panel"><div class="empty">还没有经验。先记几条做过的事，攒够两次同类事件就会自动提炼。</div></div></section>'}
+
+    <section class="section">
+      <h2 class="section-title">什么算「有效」</h2>
+      <div class="panel">
+        <div class="section-note" style="margin:0 0 12px">
+          这一层不归 Agent 管。它可以自己调整每条经验的分数（单环），
+          但「多少分算有效、几次应用才够升级」必须由你定（双环）。
+        </div>
+        <div class="xp-crit">
+          <label>高于<input type="number" id="crit-promote" min="30" max="99" value="${Math.round((t.promote || 0.72) * 100)}" />分固化为技能</label>
+          <label>低于<input type="number" id="crit-archive" min="5" max="90" value="${Math.round((t.archive || 0.25) * 100)}" />分进入休眠</label>
+          <label>至少用够<input type="number" id="crit-samples" min="1" max="50" value="${t.minSamples || 3}" />次才升降级</label>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn" data-act="save-criteria">确认修改</button>
+        </div>
+      </div>
+    </section>`
+}
+
 /* ── 渲染与事件 ───────────────────────────────────────── */
 
 function route() {
   const hash = (location.hash || '#/home').replace('#/', '')
-  return ['home', 'ask', 'archive', 'grant'].includes(hash) ? hash : 'home'
+  return ['home', 'ask', 'assets', 'archive', 'grant'].includes(hash) ? hash : 'home'
 }
 
 async function render() {
@@ -458,6 +561,7 @@ async function render() {
   const app = document.getElementById('app')
   if (tab === 'home') app.innerHTML = viewHome()
   else if (tab === 'ask') app.innerHTML = viewAsk()
+  else if (tab === 'assets') app.innerHTML = viewAssets()
   else if (tab === 'archive') app.innerHTML = viewArchive()
   else app.innerHTML = viewGrant()
 
@@ -484,6 +588,16 @@ async function loadCommon() {
 
 async function loadTab(tab) {
   if (tab === 'home') return loadCommon()
+  if (tab === 'assets') {
+    const [assets, exps] = await Promise.all([
+      api(`/api/persons/${PERSON}/experiences/assets`),
+      api(`/api/persons/${PERSON}/experiences`),
+    ])
+    state.assets = assets.assets
+    state.engine = assets.engine
+    state.experiences = exps.experiences
+    return
+  }
   if (tab === 'archive') {
     state.profile = await api(`/api/persons/${PERSON}/profile`)
     return
@@ -535,6 +649,66 @@ const actions = {
     } finally {
       state.loading = false
       await render()
+    }
+  },
+
+  reflect: async () => {
+    try {
+      const r = await api(`/api/persons/${PERSON}/experiences/reflect`, { method: 'POST', body: {} })
+      if (!r.candidates?.length) {
+        toast(r.note || `事件还不够（当前 ${r.events} 条），先多记几次`, 3000)
+      } else {
+        toast(`提炼 ${r.created} 条新经验，更新 ${r.updated} 条`, 3000)
+      }
+      await loadTab('assets')
+      await render()
+    } catch (err) {
+      toast(err.message)
+    }
+  },
+
+  'xp-status': async el => {
+    try {
+      await api(`/api/persons/${PERSON}/experiences/${el.dataset.id}/status`, {
+        method: 'POST',
+        body: { status: el.dataset.status },
+      })
+      await loadTab('assets')
+      await render()
+    } catch (err) {
+      toast(err.message)
+    }
+  },
+
+  'xp-apply': async el => {
+    try {
+      const r = await api(`/api/persons/${PERSON}/experiences/${el.dataset.id}/apply`, {
+        method: 'POST',
+        body: { outcome: el.dataset.outcome },
+      })
+      toast(`有效性 ${Math.round(r.before * 100)}% → ${Math.round(r.after * 100)}%，${r.statusChanged ? '状态已更新' : '继续观察'}`, 3000)
+      await loadTab('assets')
+      await render()
+    } catch (err) {
+      toast(err.message)
+    }
+  },
+
+  'save-criteria': async () => {
+    const promote = Number(document.getElementById('crit-promote')?.value) / 100
+    const archive = Number(document.getElementById('crit-archive')?.value) / 100
+    const minSamples = Number(document.getElementById('crit-samples')?.value)
+    try {
+      // confirm:true 是双环的口子，前端必须显式带上，后端也强制校验
+      const r = await api(`/api/persons/${PERSON}/criteria`, {
+        method: 'POST',
+        body: { confirm: true, thresholds: { promote, archive, minSamples } },
+      })
+      toast(`已按你的口径更新（v${r.criteria.version}）`, 2600)
+      await loadTab('assets')
+      await render()
+    } catch (err) {
+      toast(err.message)
     }
   },
 

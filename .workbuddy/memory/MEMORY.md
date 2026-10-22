@@ -1,4 +1,4 @@
-# 硅基记忆体 · 工程记忆
+# 起居注 · 工程记忆（本地目录名仍为「硅基记忆体」，不改）
 
 > 长期约定与当前状态。单次改动见 `2026-MM-DD.md`。
 
@@ -12,12 +12,13 @@
 | 本地目录 | `~/WorkBuddy/硅基记忆体`（目录名不改） |
 | GitHub | <https://github.com/ygy0313/CarbonSiliconAI>（公开）SSH：`git@github.com:ygy0313/CarbonSiliconAI.git` |
 | 默认分支 | `main`（已建 upstream） |
-| 类型 | 微信原生小程序 + H5（web/，后端同源托管）+ 零依赖 Node 后端 |
-| 后端端口 | 8787 |
+| 类型 | 微信原生小程序 + H5（web/）+ Node 网关（8787）+ C++17 计算内核（8788） |
+| 后端端口 | 8787（Node）/ 8788（core/ 内核，仅监听本机） |
 | 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
 | 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
 | 隐私架构 | 原文 AES-256-GCM 进保险箱（`QJZ_PASSPHRASE` 派生），主库只存脱敏文本；读 prompt/导出/还原需 scope 票据 |
-| 测试 | `smoke.js` 33 项 + `check-privacy.js` 52 项 + `verify-ganzhi.js` 26 项 + `check-wxml.js`，CI 全跑 |
+| 测试 | `smoke.js` 33 + `check-privacy.js` 52 + `check-experience.js` 53 + `verify-ganzhi.js` 26 + WXML + 内核自检 17，CI 全跑 |
+| 经验层 | `experiences`（可执行规则，资产核心）+ `criteria`（双环约束点，带版本号）；反思入口 `POST /experiences/reflect` |
 
 ## 启动
 
@@ -39,6 +40,11 @@ node miniprogram/scripts/check-wxml.js
 6. 每条推荐必须有 `why`，尽量有 `evidence`（引用 episode）。不能溯源的推荐不许出现。
 7. gather 意图必须产出 `kind: 'plan'` 的 bundle（时间线 + 待办 + 人均），且先按 `detectGatherMode()` 分 solo/npc/group。
 8. 运势只谈节奏与宜忌方向，不作吉凶、财运、健康、婚恋断言。
+11. **经验必须能溯源**：没有 evidence 的经验 `createExperience` 会拒收；跨人读经验返回 404 不是 403。
+12. **经验必须影响结果**：编排时检索 Top-K 经验参与仲裁（`applyExperienceBoost` 提升已存在候选），不许只贴标签。
+13. **Agent 可改经验分数，不可改评估标准**：`POST /criteria` 必须带 `confirm:true`（双环约束）。
+14. **内核是加速器不是依赖**：`core/`（C++）与 `src/core/fallback.js`（JS 镜像）算法必须逐项对齐，同构断言在 check-experience.js；改一边必须改另一边。
+15. 改 `core/*.cpp` 后必须重启 8788 进程，否则跑旧二进制。
 9. 控制器只做解析/调用/格式化，不写业务判断。
 10. 事实冲突进 conflict 队列，不自动覆盖。
 

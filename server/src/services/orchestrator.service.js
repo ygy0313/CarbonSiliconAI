@@ -6,6 +6,7 @@
 // 每次编排都留完整 trace，前端可以逐帧播放「执笔在怎么想」。
 
 const registry = require('../agents/registry')
+const experienceService = require('./experience.service')
 const { INTENTS } = require('../domain/taxonomy')
 const { compileSilicon, recall } = require('./profile.service')
 const log = require('../logger')
@@ -193,8 +194,28 @@ async function orchestrate(repos, personId, text, opts = {}) {
     })
   }
 
-  // ── 6. 合并仲裁 ──
-  const cards = compose({ outputs, intent, silicon, facts, entities: ctx.entities })
+  // ── 6. 经验：这个情境下，你以前是怎么判断的 ──
+  // 必须放在仲裁之前。经验如果只在结果出来后贴一张标签，那它对结果毫无影响，
+  // 「经验资产」就是装饰品。先取经验，再让它参与排序，才叫调用。
+  let experience = { source: 'none', items: [], considered: 0, ms: 0 }
+  try {
+    experience = await experienceService.retrieve(repos, personId, {
+      tags: ctx.tags,
+      scene: ctx.entities.gatherMode || sceneOfIntent(intent),
+      intent: intent.type,
+      text,
+    })
+  } catch (err) {
+    log.warn('经验检索失败，本次不注入', { error: err.message })
+  }
+  if (experience.items.length) {
+    push('experience', `调出 ${experience.items.length} 条经验`, {
+      detail: experience.items.map(i => i.readability).join(' / ').slice(0, 70),
+    })
+  }
+
+  // ── 7. 合并仲裁（经验在这里生效）──
+  const cards = compose({ outputs, intent, silicon, facts, entities: ctx.entities, experience: experience.items })
   push('compose', `合并出 ${cards.length} 条建议`, {
     detail: cards.map(c => c.title).join(' / ').slice(0, 80),
   })
@@ -209,6 +230,16 @@ async function orchestrate(repos, personId, text, opts = {}) {
     entities: ctx.entities,
     cardIds: cards.map(c => c.id),
     cardCount: cards.length,
+    // 卡片快照：反思要靠它还原「当时给了什么、用户选了哪个」。
+    // 只存轻量字段，不存整张卡的 meta（时间线/待办那种展示数据反思用不上）。
+    cards: cards.map(c => ({
+      id: c.id,
+      title: c.title,
+      kind: c.kind,
+      source: c.source,
+      experienceIds: c.experienceIds || [],
+    })),
+    experienceIds: cards.flatMap(c => c.experienceIds || []),
     agents: plan.layers.flat(),
     summary,
     trace,
@@ -229,9 +260,73 @@ async function orchestrate(repos, personId, text, opts = {}) {
     },
     cards,
     summary,
+    experience: {
+      source: experience.source,
+      ms: experience.ms,
+      count: experience.items.length,
+      items: experience.items,
+    },
     trace,
     totalMs: Date.now() - startedAt,
   }
+}
+
+/**
+ * 经验加权：命中的选项提到第一位，并标上「你以前选过」。
+ *
+ * 只动顺序和 kind，不动内容 —— 推荐的事实依据（评分、理由、溯源）保持原样，
+ * 用户看到的仍然是 agent 的判断，只是被自己的历史偏好修正了顺序。
+ */
+function applyExperienceBoost(cards, items) {
+  if (!items.length || !cards.length) return cards
+
+  const norm = s => String(s || '').replace(/[《》（）()\s·]/g, '')
+  const out = cards.slice()
+
+  for (const item of items) {
+    if (item.action === 'avoid') continue
+    const target = norm(item.title)
+    if (!target) continue
+
+    const idx = out.findIndex(c => {
+      const t = norm(c.title)
+      return t === target || t.includes(target) || target.includes(t)
+    })
+    if (idx < 0) continue
+
+    const hit = out.splice(idx, 1)[0]
+    hit.kind = 'primary'
+    hit.experienceIds = [item.id]
+    hit.experience = [{ id: item.id, rule: item.rule, readability: item.readability, effectiveness: item.effectiveness, why: item.why }]
+    hit.why = [`你以前在这类情境下选过它，${item.why || '效果不错'}`, ...(hit.why || [])].slice(0, 4)
+    out.unshift(hit)
+    break // 只提升一条，多了会变成「经验说了算」，agent 的判断就没意义了
+  }
+
+  return out
+}
+
+/** 意图 → 场景码，让经验的触发条件和组的局用同一套词 */
+function sceneOfIntent(intent) {
+  if (intent.type === 'gather') return 'group'
+  if (intent.type === 'eat') return 'solo'
+  return 'daily'
+}
+
+/** 把经验挂到主方案上：只挂前两条，多了会把卡片挤爆 */
+function attachExperience(cards, items) {
+  const host = cards.find(c => c.kind === 'plan') || cards.find(c => c.kind === 'primary') || cards[0]
+  if (!host) return
+  const top = items.slice(0, 2)
+  host.experienceIds = top.map(i => i.id)
+  host.experience = top.map(i => ({
+    id: i.id,
+    rule: i.rule,
+    readability: i.readability,
+    effectiveness: i.effectiveness,
+    why: i.why,
+  }))
+  host.why = [...(host.why || []), ...top.map(i => `你以前总结过：${i.readability}`)].slice(0, 4)
 }
 
 /**
@@ -241,7 +336,7 @@ async function orchestrate(repos, personId, text, opts = {}) {
  *   3) 跨 agent 同类去重（按标题归一）
  *   4) gather 场景拼总预算
  */
-function compose({ outputs, intent, silicon, facts, entities }) {
+function compose({ outputs, intent, silicon, facts, entities, experience = [] }) {
   const all = []
   for (const [agentId, out] of Object.entries(outputs)) {
     for (const item of out.items || []) {
@@ -258,6 +353,10 @@ function compose({ outputs, intent, silicon, facts, entities }) {
     seen.add(key)
     deduped.push(item)
   }
+
+  // 经验参与仲裁：把「你以前在这类情境下选过的」提到最前。
+  // 只提升已经存在的候选，不凭空造卡片 —— 经验是判据，不是商品。
+  deduped.splice(0, deduped.length, ...applyExperienceBoost(deduped, experience))
 
   // gather 场景：把三条独立推荐「组装成一个局」。
   // 这是多 agent 协同真正的产出物 —— 用户要的不是三个选项，是一份能照着做的安排。

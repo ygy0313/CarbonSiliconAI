@@ -5,7 +5,7 @@
 > 记下你怎么活，替你安排下一步。
 > 它不问你想要什么，它记得你怎么活的。
 
-**当前状态**：MVP 可运行。三档组局（一个人 / 跟 AI / 一群人）、脱敏档案、授权导出、入局问答、干支历算，全部落地。后端 + H5 + 微信小程序双端。
+**当前状态**：MVP 可运行。三档组局、脱敏档案、授权导出、入局问答、干支历算、**经验资产（记录→提炼→调用→回写闭环）** 全部落地。后端（Node 网关 + C++ 计算内核）+ H5 + 微信小程序。
 
 - 仓库：<https://github.com/ygy0313/CarbonSiliconAI>
 - 克隆：`git clone git@github.com:ygy0313/CarbonSiliconAI.git`
@@ -21,10 +21,12 @@ cd server && node src/index.js     # 零依赖，不需要 npm install
 - **验收**：
 
 ```bash
-node server/scripts/smoke.js          # 33 项端到端
-node server/scripts/check-privacy.js  # 52 项隐私链路（脱敏/授权/导出/恢复）
-node server/scripts/verify-ganzhi.js  # 26 项干支历算
-node miniprogram/scripts/check-wxml.js
+node server/scripts/smoke.js              # 33 项端到端
+node server/scripts/check-privacy.js      # 52 项隐私链路（脱敏/授权/导出/恢复）
+node server/scripts/check-experience.js   # 53 项经验资产（闭环/双环/隔离/双实现同构）
+node server/scripts/verify-ganzhi.js      # 26 项干支历算
+node miniprogram/scripts/check-wxml.js    # 小程序模板体检
+cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 ```
 
 ## 它解决什么问题
@@ -45,6 +47,9 @@ node miniprogram/scripts/check-wxml.js
 | 标准导出 | `qijuzhu/v1` 格式，sha256 校验和 + HMAC 签名，可导入恢复成新档案 —— 换设备、换 App、二十年后也能读 |
 | 入局问答 | 12 道带梗的题（外卖、香菜、已读不回），答题即建档，每题只采一个维度 |
 | 干支历算 | 流年/流月/流日三层，节气用太阳视黄经反解（与历书偏差 2-7 分钟），年柱以立春为界；只谈节奏与宜忌方向，不作吉凶断言 |
+| 经验资产 | 反思回路把重复出现的「采纳/否决」压成可执行规则；经验参与推荐仲裁（不是贴标签）；每次应用结果回写有效性评分；反复奏效自动固化为技能 |
+| 双环约束 | Agent 可自动调分数（单环）；「多少分算有效、几次应用才够升级」必须用户确认（双环），改动进审计 |
+| C++ 内核 | 经验评分与反思挖掘跑在独立 C++17 服务（零外部依赖，`make` 一行编译），CPU 密集活不占 Node 事件循环；内核不可用时自动回落算法一致的 JS 镜像 |
 | 双端 | H5（零构建，与 API 同源）+ 微信原生小程序，共用一套后端 |
 
 ## 目录
@@ -52,10 +57,14 @@ node miniprogram/scripts/check-wxml.js
 ```
 ├── server/                 零依赖 Node 后端（端口 8787）
 │   ├── src/security/       脱敏、加密保险箱、授权票据
-│   ├── src/domain/         领域词典、干支历算、入局问答、品牌
+│   ├── src/domain/         领域词典、干支历算、入局问答、经验模型、品牌
 │   ├── src/agents/         生活服务能力（声明 needs/provides，编排器自动组装）
-│   ├── src/services/       抽取 / 画像 / 编排 / 核对 / prompt / 导出
-│   └── scripts/            三套回归测试
+│   ├── src/services/       抽取 / 画像 / 编排 / 核对 / 经验 / 反思 / prompt / 导出
+│   ├── src/core/           C++ 内核客户端 + 算法一致的 JS 镜像（降级用）
+│   └── scripts/            四套回归测试
+├── core/                   C++17 计算内核（零外部依赖，端口 8788）
+│   ├── include/            迷你 JSON、经验评分/挖掘算法
+│   └── src/                POSIX socket 服务（仅监听本机）+ 自检 + 压测
 ├── web/                    H5 端（原生 HTML/CSS/JS，由后端静态托管）
 ├── miniprogram/            微信小程序端
 ├── preview/                一页总览（架构 / 流程 / 原型 / 成本）
@@ -66,7 +75,8 @@ node miniprogram/scripts/check-wxml.js
     ├── 04-隐私与授权.md     脱敏规则 / 票据机制 / 导出格式
     ├── 05-部署阿里云ECS.md  Nginx / systemd / HTTPS / 备份 / 容量预估
     ├── 06-小程序注册与备案.md 双备案全流程 / 费用 / 高频驳回原因
-    └── 07-上线检查清单.md   从「本地能跑」到「别人能用」的全部步骤
+    ├── 07-上线检查清单.md   从「本地能跑」到「别人能用」的全部步骤
+    └── 08-三层架构与经验资产.md 三层职责 / 记忆分层 / 经验闭环 / C++ 决策与实测
 ```
 
 ## 关键约定（改代码前必读）
@@ -77,6 +87,9 @@ node miniprogram/scripts/check-wxml.js
 4. **LLM 是增强层不是依赖层**：不配 key 全流程照跑，LLM 失败一律 null 降级
 5. **推荐必带 `why`，尽量带 `evidence`**；说不出理由的建议不许出现
 6. **运势只谈节奏与宜忌方向**，不作吉凶、财运、健康、婚恋断言
+7. **经验必须能溯源、必须影响结果**。没有 evidence 的经验不许入库；不影响排序的经验只是注解，等于没有
+8. **Agent 可改经验分数，不可改评估标准**（双环约束，改标准必须用户 confirm）
+9. **core/ 内核是加速器不是依赖**：改内核算法必须同步改 `src/core/fallback.js`，同构断言在 check-experience.js
 
 ## 数据安全速览
 
@@ -98,6 +111,8 @@ node miniprogram/scripts/check-wxml.js
 | `SEED_DEMO` | true | 是否生成演示档案，生产设 false |
 | `LLM_PROVIDER` | none | none / zhipu / deepseek / openai / ollama |
 | `CORS_ORIGINS` | localhost:5173 | H5 独立部署时的跨域白名单 |
+| `CORE_ENABLED` / `CORE_PORT` | true / 8788 | C++ 内核开关与端口，关掉即全走 JS 镜像 |
+| `EXPERIENCE_MIN_SUPPORT` | 2 | 反思成规则所需的最少同类事件数 |
 
 ## 下一步
 

@@ -355,3 +355,100 @@ pre.prompt {
   .pillar { min-width: 78px; }
   #app { padding: 0 14px 92px; }
 }
+
+/* ── 经验资产 ─────────────────────────────────────────── */
+.xp-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  text-align: center;
+  padding: 18px 10px;
+}
+.xp-cell b {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.xp-cell span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.xp-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+.xp-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.xp-item:last-child { border-bottom: none; padding-bottom: 4px; }
+.xp-item:first-child { padding-top: 4px; }
+.xp-rule {
+  font-size: 14.5px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.xp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.xp-badge {
+  border: 1px solid var(--green);
+  color: var(--green);
+  border-radius: 2px;
+  padding: 0 5px;
+  font-size: 11px;
+}
+.xp-bar {
+  height: 4px;
+  background: var(--line-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+/* span 默认 inline，height 不生效 —— 这条踩过一次，别再踩 */
+.xp-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  transition: width .3s ease;
+}
+.xp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.xp-pct {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.xp-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.xp-crit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.xp-crit label { display: flex; align-items: center; gap: 6px; }
+.xp-crit input {
+  width: 62px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: center;
+}

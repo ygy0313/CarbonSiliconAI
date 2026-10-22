@@ -31,6 +31,9 @@ const { applyFeedback, resolveConflict, detectAndQueueConflict } = require('./se
 const { applyAnswer } = require('./services/quiz.service')
 const { buildPersonaPrompt, summarize: summarizePrompt } = require('./services/prompt.service')
 const { exportArchive, importArchive, verifyArchive } = require('./services/export.service')
+const experienceService = require('./services/experience.service')
+const reflectService = require('./services/reflect.service')
+const core = require('./core/client')
 const vault = require('./security/vault')
 const grant = require('./security/grant')
 const { redact, redactDeep } = require('./security/redact')
@@ -111,7 +114,7 @@ const routes = [
   {
     method: 'GET',
     pattern: /^\/ready$/,
-    handler: async () => ({ ready: true, dataDir: config.dataDir, llm: llm.describe() }),
+    handler: async () => ({ ready: true, dataDir: config.dataDir, llm: llm.describe(), core: await core.describe() }),
   },
   {
     method: 'GET',
@@ -130,6 +133,12 @@ const routes = [
       intents: INTENTS.map(i => ({ type: i.type, label: i.label, service: i.service })),
       services: baseAgents.list(),
       memory: { halfLifeDays: config.memory.halfLifeDays },
+      experience: {
+        minSupport: config.experience.minSupport,
+        exposeLimit: config.experience.exposeLimit,
+        criteria: experienceService.getCriteria(repos, PERSON_DEFAULT).thresholds,
+        engine: 'core/（C++ 内核，可选加速；不可用时自动回落 JS 镜像实现）',
+      },
       privacy: {
         vault: vault.describe(),
         defaults: '记录先脱敏再入库，原文只存密文；读取 prompt / 导出 / 还原原文均需显式授权',
@@ -294,6 +303,116 @@ const routes = [
       })
     },
   },
+  // ── 经验资产：情境 → 曾经有效的判断 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/assets$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      const assets = await experienceService.assets(repos, params[0])
+      const engine = await core.describe()
+      return { assets, engine: { engine: engine.engine, alive: engine.alive, stats: engine.stats } }
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences$/,
+    handler: async ({ params, query }) => {
+      requirePerson(params[0])
+      const status = query.get('status')
+      if (status && !['active', 'dormant', 'proposed', 'archived'].includes(status)) {
+        throw new ValidationError('status 必须是 active / dormant / proposed / archived')
+      }
+      return {
+        experiences: experienceService.list(repos, params[0], { status }),
+        criteria: experienceService.getCriteria(repos, params[0]).thresholds,
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const rule = requireString(body.rule, 'rule', 300)
+      const tags = Array.isArray(body.tags) ? body.tags.slice(0, 6).map(String) : []
+      const scene = ['solo', 'group', 'npc', 'work', ''].includes(body.scene) ? body.scene : ''
+      return { experience: experienceService.createManual(repos, params[0], { rule, tags, scene }) }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/reflect$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const r = await reflectService.reflect(repos, params[0], {
+        days: Math.min(365, Math.max(7, Number(body.days) || 120)),
+      })
+      return r
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/([\w-]+)$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      const exp = experienceService.get(repos, params[0], params[1])
+      // 跨人访问 = 不存在。不返回 403，403 本身就泄漏了「这条经验存在」
+      if (!exp) throw new NotFoundError('经验不存在')
+      return { experience: exp }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/([\w-]+)\/apply$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const outcome = body.outcome
+      if (!['worked', 'failed', 'neutral'].includes(outcome)) {
+        throw new ValidationError('outcome 必须是 worked / failed / neutral')
+      }
+      const r = experienceService.applyOutcome(repos, params[0], params[1], outcome, {
+        note: body.note || '',
+      })
+      if (!r) throw new NotFoundError('经验不存在')
+      return r
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/([\w-]+)\/status$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const status = body.status
+      if (!['active', 'dormant', 'archived', 'proposed'].includes(status)) {
+        throw new ValidationError('status 不合法')
+      }
+      const exp = experienceService.setStatus(repos, params[0], params[1], status)
+      if (!exp) throw new NotFoundError('经验不存在')
+      return { experience: exp }
+    },
+  },
+
+  // ── 双环约束点：评估标准只能由用户改 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/criteria$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      return { criteria: experienceService.getCriteria(repos, params[0]) }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/criteria$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const r = experienceService.setCriteria(repos, params[0], body, { confirm: body.confirm === true })
+      log.warn('用户修改了经验评估标准', { personId: params[0], version: r.criteria.version })
+      return r
+    },
+  },
+
   {
     method: 'GET',
     pattern: /^\/api\/persons\/([\w-]+)\/conflicts$/,
@@ -470,7 +589,7 @@ const routes = [
     pattern: /^\/api\/dev\/reset$/,
     handler: async () => {
       if (config.env === 'production') throw new ValidationError('生产环境禁止重置')
-      for (const name of ['persons', 'facts', 'episodes', 'traits', 'invocations', 'conflicts', 'grants', 'audits']) {
+      for (const name of ['persons', 'facts', 'episodes', 'traits', 'invocations', 'conflicts', 'grants', 'audits', 'experiences', 'criteria']) {
         const col = repos.store.collection(name)
         col.items.length = 0
         col._persist()
@@ -603,6 +722,10 @@ async function bootstrap() {
     log.info('已写入演示档案', { personId: PERSON_DEFAULT })
   }
 
+  // 内核是可选的：探一下就好，连不上不算启动失败
+  const coreState = await core.describe()
+  log.info('计算内核状态', { engine: coreState.engine, alive: coreState.alive })
+
   server.listen(config.port, () => {
     log.info('服务已启动', {
       port: config.port,
@@ -619,6 +742,7 @@ async function bootstrap() {
   模型: ${llm.describe().enabled ? llm.describe().model : '规则引擎（零成本）'}
   能力: ${baseAgents.list().map(s => s.name).join(' / ')}
   保险箱: ${vaultState.source === 'env' ? '环境变量口令' : '本地密钥文件（生产请改 QJZ_PASSPHRASE）'}
+  内核: ${coreState.alive ? `C++ 内核已连接（${config.core.host}:${config.core.port}）` : '未连接，经验打分走 JS 镜像实现（结果一致，稍慢）'}
 `)
   })
 }

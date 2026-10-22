@@ -9,6 +9,8 @@
 // 所有修正都写回记忆，下一次编排立刻生效 —— 这就是「越用越像你」的机制。
 
 const { FACT_DIMENSIONS } = require('../domain/taxonomy')
+const experienceService = require('./experience.service')
+const reflectService = require('./reflect.service')
 
 const REASON_ACTIONS = {
   too_spicy: { key: 'diet.spicy', hint: '降低辣度耐受' },
@@ -60,7 +62,7 @@ function detectAndQueueConflict(repos, personId, factChanges, episodeId) {
  * 处理一次用户反馈。
  * @param {'accept'|'reject'|'edit'} action
  */
-function applyFeedback(repos, personId, { invocationId, cardId, action, reason, patch }) {
+async function applyFeedback(repos, personId, { invocationId, cardId, action, reason, patch }) {
   const invocation = repos.invocation.get(invocationId)
   if (!invocation) return { ok: false, error: 'INVOCATION_NOT_FOUND' }
 
@@ -70,6 +72,10 @@ function applyFeedback(repos, personId, { invocationId, cardId, action, reason, 
   repos.invocation.update(invocationId, {
     feedback: { cardId, action, reason: reason || null, patch: patch || null, at: now },
   })
+
+  // 回写经验：这次推荐如果用了某条经验，结果就是那条经验的「应用效果」。
+  // 不做这一步，经验的有效性评分永远是拍脑袋的 0.5。
+  const experienceUpdates = recordExperienceOutcome(repos, personId, invocation, cardId, action)
 
   if (action === 'accept') {
     // 隐式强化：相关维度置信度 +0.06，让「被采纳过的偏好」更稳
@@ -169,7 +175,48 @@ function applyFeedback(repos, personId, { invocationId, cardId, action, reason, 
     })
   }
 
-  return { ok: true, changes }
+  // 单环：攒够新反馈就自动反思一次。失败不影响反馈本身（反馈是用户的动作，不能被后台任务拖累）
+  let reflection = { skipped: true, reason: 'not_attempted' }
+  try {
+    reflection = await reflectService.maybeReflect(repos, personId)
+  } catch (err) {
+    reflection = { skipped: true, reason: 'reflect_failed', error: err.message }
+  }
+
+  return { ok: true, changes, experienceUpdates, reflection }
+}
+
+/**
+ * 一次反馈 → 若干条经验的评分更新。
+ * accept 记 worked，reject 记 failed。edit 不改评分 —— 用户只是改了参数，
+ * 不代表这条规则本身错了。
+ */
+function recordExperienceOutcome(repos, personId, invocation, cardId, action) {
+  const cards = invocation.cards || []
+  const target =
+    cards.find(c => c.id === cardId) ||
+    cards.find(c => c.kind === 'plan') ||
+    cards.find(c => (c.experienceIds || []).length)
+  if (!target || !(target.experienceIds || []).length) return []
+
+  const outcome = action === 'accept' ? 'worked' : action === 'reject' ? 'failed' : 'neutral'
+  const updates = []
+  for (const id of target.experienceIds) {
+    const res = experienceService.applyOutcome(repos, personId, id, outcome, {
+      invocationId: invocation.id,
+      cardId: target.id,
+    })
+    if (res) {
+      updates.push({
+        id,
+        before: res.before,
+        after: res.after,
+        status: res.experience.status,
+        statusChanged: res.statusChanged,
+      })
+    }
+  }
+  return updates
 }
 
 /**

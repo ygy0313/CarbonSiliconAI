@@ -133,10 +133,11 @@ function seedDemo(repos, personId) {
     },
   ]
 
+  const inserted = []
   for (const e of episodes) {
     // 演示数据也走同一条脱敏流水线 —— 不能有「这条是 seed 所以可以留明文」的例外口子
     const safe = redactDeep({ text: e.text, summary: e.summary, entities: e.entities })
-    repos.episode.insert({
+    inserted.push(repos.episode.insert({
       personId,
       ts: daysAgo(e.d, e.h),
       kind: e.kind,
@@ -150,10 +151,56 @@ function seedDemo(repos, personId) {
       redaction: { hits: safe.hits, sealed: false },
       rawCipher: null,
       piiCipher: null,
+    }))
+  }
+
+  // 演示经验：让「经验资产」页第一次打开就不是空的。
+  // 真实产品里这两条会由反思挖出来；这里是为了让新用户看懂这一页在讲什么。
+  const seedExperiences = [
+    {
+      rule: '在「胃敏感、微辣」这类情境下，优先「清汤面」——过去 4/5 次你都采纳了。',
+      tags: ['胃敏感', '微辣'],
+      scene: 'solo',
+      effectiveness: 0.74,
+      applied: 5,
+      followed: 4,
+    },
+    {
+      rule: '在「聚会、新手」这类情境下，优先「新手欢乐本」——过去 3/4 次你都采纳了。',
+      tags: ['聚会', '新手'],
+      scene: 'group',
+      effectiveness: 0.68,
+      applied: 4,
+      followed: 3,
+    },
+  ]
+
+  for (const x of seedExperiences) {
+    const now = new Date().toISOString()
+    repos.experience.insert({
+      personId,
+      rule: x.rule,
+      trigger: { tags: x.tags, scene: x.scene, intent: '', predicate: '' },
+      situation: { text: x.rule, scene: x.scene, tags: x.tags },
+      action: { kind: 'rule', text: x.rule },
+      outcome: { verdict: 'good', support: x.applied, note: '演示数据' },
+      effectiveness: x.effectiveness,
+      applied: x.applied,
+      followed: x.followed,
+      evidence: inserted.slice(0, 3).map(e => ({ refId: e.id, kind: 'episode' })),
+      status: 'active',
+      source: 'seed',
+      loop: 'single',
+      signature: `seed|${x.rule.slice(0, 40)}`,
+      applications: [],
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+      lastAppliedAt: null,
     })
   }
 
-  return { skipped: false, facts: facts.length, episodes: episodes.length }
+  return { skipped: false, facts: facts.length, episodes: episodes.length, experiences: seedExperiences.length }
 }
 
 module.exports = { seedDemo }

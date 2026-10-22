@@ -18,6 +18,9 @@ function createRepos(dataDir) {
   const conflicts = store.collection('conflicts')
   const grants = store.collection('grants')
   const audits = store.collection('audits')
+  // 经验层：用户「经验资产」的存放处，与事实层分开 —— 事实是 is，经验是 how。
+  const experiences = store.collection('experiences')
+  const criteria = store.collection('criteria')
 
   return {
     store,
@@ -128,6 +131,38 @@ function createRepos(dataDir) {
       byPerson: personId => audits.find(a => a.personId === personId),
       insert: doc => audits.insert({ id: newId('a'), ...doc }),
       all: () => audits.all(),
+    },
+
+    // ── 经验层 ──
+    // 隔离是硬约束：任何按 id 取经验的方法都必须带 personId，
+    // 跨人访问一律当作「不存在」，返回 null 而不是报「无权限」——
+    // 不泄漏「这条经验存在」本身就是隔离的一部分。
+    experience: {
+      byPerson: (personId, { status = null, limit = 500 } = {}) => {
+        const rows = experiences.find(e => e.personId === personId && (!status || e.status === status))
+        return rows
+          .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+          .slice(0, limit)
+      },
+      get: (personId, id) => {
+        const e = experiences.byId(id)
+        return e && e.personId === personId ? e : null
+      },
+      insert: doc => experiences.insert({ id: newId('x'), ...doc }),
+      update: (id, patch) => experiences.update(id, patch),
+      remove: id => experiences.remove(id),
+      countAll: () => experiences.all().length,
+    },
+
+    // ── 经验评估标准（双环约束点）──
+    // 每个用户一份，带版本号和确认时间。反思只能读，不能改。
+    criteria: {
+      get: personId => criteria.findOne(c => c.personId === personId),
+      upsert: (personId, doc) => {
+        const existing = criteria.findOne(c => c.personId === personId)
+        if (existing) return criteria.update(existing.id, doc)
+        return criteria.insert({ id: newId('cr'), personId, ...doc })
+      },
     },
 
     newId,

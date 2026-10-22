@@ -37,6 +37,23 @@ const config = {
     minConfidence: 0.15,
   },
 
+  // C++ 计算内核（core/）。没有它也能跑：JS 镜像实现会自动接管。
+  // 关掉的场景：CI 只跑 Node、或内核在这台机器上编译不出来。
+  core: {
+    enabled: bool(process.env.CORE_ENABLED, true),
+    host: process.env.CORE_HOST || '127.0.0.1',
+    port: int(process.env.CORE_PORT, 8788),
+    timeoutMs: int(process.env.CORE_TIMEOUT_MS, 500),
+    // 单次送入内核的经验条数上限，防一次请求把内存打满
+    maxItems: int(process.env.CORE_MAX_ITEMS, 20000),
+  },
+
+  // 经验资产：反思回路的节奏与阈值（双环约束点的默认值，用户可改）
+  experience: {
+    minSupport: int(process.env.EXPERIENCE_MIN_SUPPORT, 2),
+    exposeLimit: int(process.env.EXPERIENCE_EXPOSE_LIMIT, 3),
+  },
+
   // CORS：显式来源，禁止通配符。小程序不受 CORS 限制，这里只服务本地预览页。
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')

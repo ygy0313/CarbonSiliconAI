@@ -18,3 +18,4 @@ logs/
 
 # 微信开发者工具本地产物
 miniprogram/project.private.config.json
+core/bin/
