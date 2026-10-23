@@ -55,6 +55,11 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-privacy.js
 
+      - name: 能力回归（33 项：意图路由/选酒判断/记梦结构/边界）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-agents.js
+
       - name: C++ 内核自检
         run: |
           cd core

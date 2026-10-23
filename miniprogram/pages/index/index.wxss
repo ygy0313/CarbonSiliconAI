@@ -25,10 +25,13 @@
 .quick-grid {
   display: flex;
   flex-direction: row;
+  /* 快捷入口会随着能力增加而变多，必须能换行 —— 一行硬塞 5 个会被压成竖排字 */
+  flex-wrap: wrap;
   gap: 16rpx;
 }
 .quick {
-  flex: 1;
+  flex: 1 1 30%;
+  min-width: 200rpx;
   background: var(--surface);
   border: 1rpx solid var(--line);
   border-radius: 16rpx;

@@ -8,6 +8,7 @@ const NEED_LABEL = {
   'context.calendar': '日程',
   'context.venue': '场地',
   'context.catering': '茶歇',
+  'context.wine': '选酒',
 }
 
 const FALLBACK = [
@@ -18,6 +19,9 @@ const FALLBACK = [
   { id: 'catering.suggest', service: '本地生活', name: '茶歇配套', icon: '🍵', description: '按预算与忌口给茶歇组合', needs: ['profile.diet'], intents: ['gather'], cost: 'free' },
   { id: 'weather.now', service: '公共数据', name: '天气体感', icon: '☁', description: '实时天气，失败自动降级', needs: [], intents: [], cost: 'free' },
   { id: 'calendar.check', service: '公共数据', name: '日程核对', icon: '◷', description: '把模糊时间落到具体日期并检查冲突', needs: [], intents: [], cost: 'free' },
+  // 离线兜底也要有两张新面孔，否则网络一断，用户会以为「选酒/记梦」没上线
+  { id: 'wine.suggest', service: '九月葡园', name: '选酒', icon: '🍷', description: '按收礼人、场合、预算、配餐选一瓶，不报价', needs: ['context.fortune'], intents: ['gift', 'drink'], cost: 'free' },
+  { id: 'dream.record', service: '梦境', name: '记梦', icon: '🌙', description: '把梦拆成意象与情绪，给三幕故事骨架，不解梦', needs: [], intents: ['dream'], cost: 'free' },
 ]
 
 Page({

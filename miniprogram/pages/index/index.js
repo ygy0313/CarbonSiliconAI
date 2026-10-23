@@ -27,6 +27,8 @@ Page({
       { key: 'eat', label: '今天吃什么', text: '今天中午吃什么，别太辣' },
       { key: 'gather', label: '组个局', text: '周六想和朋友组个局，6个人' },
       { key: 'drink', label: '喝点什么', text: '今晚喝点什么好' },
+      { key: 'gift', label: '送点什么', text: '过节给长辈送瓶酒，预算 300' },
+      { key: 'dream', label: '记个梦', text: '昨晚梦见水一直涨，一直在找一扇门' },
     ],
   },
 

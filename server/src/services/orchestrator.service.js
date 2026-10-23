@@ -27,6 +27,8 @@ require('../agents/meal.agent')
 require('../agents/mystery.agent')
 require('../agents/venue.agent')
 require('../agents/catering.agent')
+require('../agents/wine.agent')
+require('../agents/dream.agent')
 
 /**
  * 意图识别：关键词加权打分。
@@ -608,6 +610,20 @@ function buildSummary({ intent, cards, outputs, entities }) {
   if (intent.type === 'eat') {
     const dishes = cards.filter(c => c.id.startsWith('meal_')).map(c => c.title)
     return dishes.length ? `今天推荐：${dishes.join(' / ')}` : primary.title
+  }
+
+  if (intent.type === 'gift' || intent.type === 'drink') {
+    // 酒和菜可能同时被召回（「喝点什么」两个能力都命中），但摘要只能有一句人话：
+    // 有酒就说酒，没酒才退回菜 —— 「干白配疙瘩汤」这种拼接宁可不要。
+    const wineCard = cards.find(c => c.id.startsWith('wine_'))
+    if (wineCard) return `${intent.type === 'gift' ? '送这瓶' : '这瓶'}：${wineCard.title}`
+    const dishes = cards.filter(c => c.id.startsWith('meal_')).map(c => c.title)
+    return dishes.length ? `今天推荐：${dishes.join(' / ')}` : primary.title
+  }
+
+  if (intent.type === 'dream') {
+    const motif = cards.find(c => c.id.startsWith('dream_') && c.id !== 'dream_story')
+    return motif ? motif.title : primary.title
   }
 
   return primary.title

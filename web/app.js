@@ -157,7 +157,9 @@ function viewHome() {
         ${['今天中午吃什么，一个人，别太辣，预算30',
            '周六想和朋友组个局，6个人，预算150，没玩过的多',
            '今晚一个人，想开一局，不想叫人',
-           '人不够，想和 AI 凑一局']
+           '人不够，想和 AI 凑一局',
+           '过节给我岳父送瓶酒，预算 300',
+           '昨晚梦见水一直涨，一直在找一扇门']
           .map(t => `<span class="chip" data-act="quick-ask" data-text="${esc(t)}">${esc(t)}</span>`).join('')}
       </div>
     </section>
@@ -206,6 +208,8 @@ function viewAsk() {
         <button class="btn btn-ghost" data-act="quick-ask" data-text="周六想和朋友组个局，6个人，预算150，没玩过的多">组个局</button>
         <button class="btn btn-ghost" data-act="quick-ask" data-text="今晚一个人，想开一局，不想叫人">一个人的局</button>
         <button class="btn btn-ghost" data-act="quick-ask" data-text="人不够，想和 AI 凑一局">跟 AI 玩</button>
+        <button class="btn btn-ghost" data-act="quick-ask" data-text="过节给我岳父送瓶酒，预算 300">送瓶酒</button>
+        <button class="btn btn-ghost" data-act="quick-ask" data-text="昨晚梦见水一直涨，一直在找一扇门">记个梦</button>
       </div>
     </section>
 

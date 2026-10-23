@@ -16,6 +16,7 @@ const DEP_PROVIDERS = {
   'context.venue': 'venue.suggest',
   'context.catering': 'catering.suggest',
   'context.calendar': 'calendar.check',
+  'context.wine': 'wine.suggest',
 }
 
 function register(agent) {
