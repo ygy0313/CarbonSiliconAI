@@ -30,6 +30,9 @@ jobs:
       - name: 小程序 WXML 体检
         run: node miniprogram/scripts/check-wxml.js
 
+      - name: 小程序结构体检（注册完整性 / tabBar / 页面逻辑桩）
+        run: node miniprogram/scripts/check-mp.js
+
       - name: 启动后端
         run: |
           cd server
@@ -60,10 +63,15 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-agents.js
 
-      - name: 法律文本回归（73 项：条款覆盖/禁词/H5 直出/XSS）
+      - name: 法律文本回归（76 项：条款覆盖/禁词/H5 直出/XSS）
         run: |
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-legal.js
+
+      - name: 输入端回归（39 项：识图/转写校验与「不留存」承诺）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-input.js
 
       - name: C++ 内核自检
         run: |

@@ -28,7 +28,13 @@ const config = {
     apiKey: process.env.LLM_API_KEY || '',
     baseUrl: process.env.LLM_BASE_URL || '',
     model: process.env.LLM_MODEL || '',
+    // 视觉与语音各自可覆盖；不填则取 provider preset 的默认模型
+    visionModel: process.env.LLM_VISION_MODEL || '',
+    asrModel: process.env.LLM_ASR_MODEL || '',
     timeoutMs: int(process.env.LLM_TIMEOUT_MS, 8000),
+    // 识图与转写都比纯文本慢，各给一条更宽的时间线
+    visionTimeoutMs: int(process.env.LLM_VISION_TIMEOUT_MS, 20000),
+    asrTimeoutMs: int(process.env.LLM_ASR_TIMEOUT_MS, 30000),
   },
 
   // 记忆衰减：置信度半衰期（天）。时间越久的事实越不可靠，需要重新核对。

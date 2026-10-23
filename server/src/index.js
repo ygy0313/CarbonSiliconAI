@@ -42,6 +42,8 @@ const { redact, redactDeep } = require('./security/redact')
 const llm = require('./llm/provider')
 const legal = require('./domain/legal')
 const legalPage = require('./services/legal.page')
+const visionService = require('./services/vision.service')
+const asrService = require('./services/asr.service')
 const { seedDemo } = require('./seed')
 
 validate()
@@ -256,6 +258,39 @@ const routes = [
         episodes: repos.episode.byPerson(params[0], 50),
         traits: compileSilicon(repos, params[0])?.traits,
         conflicts: repos.conflict.byPerson(params[0]),
+      }
+    },
+  },
+  // ── 输入端：拍照识食 / 语音转写 ──
+  // 两者都只做「当场把内容变成可用文本」，不写库、不留原件：
+  // 照片与录音在内存里过一遍就丢，转写结果交给用户自己确认后再走 records。
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/vision\/meal$/,
+    // 前端压过图，base64 仍在 1MB 上下，默认 100KB 装不下
+    bodyLimit: 2 * 1024 * 1024,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const result = await visionService.recognizeMeal(body.image, { label: body.label })
+      return {
+        ...result,
+        // 说清这一步做了什么、没做什么，前端照此提示，不自己编
+        notice: result.ok
+          ? '照片只在这次识别时用了一下，没有保存。'
+          : '照片没有保存，也没有写进档案。',
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/voice\/transcribe$/,
+    bodyLimit: 4 * 1024 * 1024,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const result = await asrService.transcribe({ audio: body.audio, mime: body.mime })
+      return {
+        ...result,
+        notice: result.ok ? '录音只在这次转写时用了一下，没有保存。' : '录音没有保存。',
       }
     },
   },
@@ -729,7 +764,8 @@ const server = http.createServer(async (req, res) => {
       )
     }
 
-    const body = req.method === 'POST' ? await readBody(req) : {}
+    // 路由可自带 bodyLimit：识图与转写要传图/音频，默认 100KB 不够
+    const body = req.method === 'POST' ? await readBody(req, matched.r.bodyLimit || 100 * 1024) : {}
     const result = await matched.r.handler({ params: matched.m.slice(1), body, query: url.searchParams, req })
     json(res, 200, { ok: true, data: result, requestId }, requestId)
     log.info('request', {

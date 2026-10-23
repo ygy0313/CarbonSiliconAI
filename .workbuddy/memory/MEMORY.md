@@ -17,8 +17,9 @@
 | 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
 | 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
 | 隐私架构 | 原文 AES-256-GCM 进保险箱（`QJZ_PASSPHRASE` 派生），主库只存脱敏文本；读 prompt/导出/还原需 scope 票据 |
-| 测试 | `smoke.js` 33 + `check-agents.js` 33 + `check-legal.js` 73 + `check-privacy.js` 52 + `check-experience.js` 53 + `verify-ganzhi.js` 26 + WXML + 内核自检 17，CI 全跑（合计 270 断言） |
-| 法律文本 | 唯一来源 `server/src/domain/legal.js`；H5 `/legal/privacy|terms` 服务端直出，小程序 `pages/legal` 拉同一接口；版本号 `LEGAL_VERSION` 变了用户要重新同意（storage `legalAck`）；运营者占位用环境变量 `QJZ_OPERATOR_NAME` 覆盖 |
+| 测试 | 后端：smoke 33 + agents 33 + legal 76 + input 39 + privacy 52 + experience 53 + ganzhi 26；小程序：check-mp 47 + WXML；内核自检 17。CI 全跑 |
+| 法律文本 | 唯一来源 `server/src/domain/legal.js`（当前 v2026.11）；H5 `/legal/privacy|terms` 服务端直出，小程序 `pages/legal` 拉同一接口；版本号 `LEGAL_VERSION` 变了用户要重新同意（storage `legalAck`）；运营者占位用环境变量 `QJZ_OPERATOR_NAME` 覆盖 |
+| 输入端 | 拍照识食 `services/vision.service.js` + 转写 `services/asr.service.js`，走 `llm/provider.js` 的 `completeVisionJSON/transcribe`（OpenAI 兼容 image_url / /audio/transcriptions）；**照片与录音只在内存过一遍即丢，不落盘不进档案**（check-input 断言）；未配模型时 reason 说「还没接通」而不是「没认出来」（engine=disabled 与 none 区分）；转写结果填输入框由用户确认后才走 records |
 | 服务能力 | 膳食 / 节律 / 天气 / 日程 / 选本 / 场地 / 茶歇 / **选酒**（`wine.suggest`）/ **记梦**（`dream.record`） |
 | 经验层 | `experiences`（可执行规则，资产核心）+ `criteria`（双环约束点，带版本号）；反思入口 `POST /experiences/reflect` |
 
@@ -50,6 +51,8 @@ node miniprogram/scripts/check-wxml.js
 16. **选酒不报价**：卡片只写价位带 + 「价格以店铺为准」，正文不得出现「数字+元」（回归脚本扫描）。
 17. **记梦不解梦**：只给意象/情绪/三幕骨架，禁用「预示/吉凶/财运/姻缘/命中注定」，禁词进回归断言。
 18. **对外文案一份只写一遍**：法律文本在 `domain/legal.js`，品牌在 `brand.js`；H5 与小程序都从服务端取，不许在页面里再抄一份（check-legal 守着）。
+19. **识图/录音不留存**：照片与录音只在内存处理完即丢，改这条必须同步改 legal.js 第九节、docs/07 声明与 check-input 断言（三处一致）。
+20. **小程序前端改动必跑 `check-mp.js`**：Page 逻辑用桩环境跑（loadPage），改动页面的数据映射没跑过不算完。
 9. 控制器只做解析/调用/格式化，不写业务判断。
 10. 事实冲突进 conflict 队列，不自动覆盖。
 

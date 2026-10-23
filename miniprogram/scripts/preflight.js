@@ -125,6 +125,16 @@ if (!operatorSrc) line('bad', '缺法律文本源文件', 'server/src/domain/leg
 else if (placeholder) line('warn', '运营者名称还是占位', '执照下来后用 QJZ_OPERATOR_NAME 环境变量覆盖，别改代码')
 else line('ok', '运营者名称已落到真实主体')
 
+// 相机与麦克风：代码里用了，后台「用户隐私保护指引」就必须逐项声明。
+// 这一步没法从代码验证（在微信后台填），所以只提醒，不判定通过。
+const recordSrc = fs.readFileSync(path.join(MP, 'pages', 'record', 'record.js'), 'utf8')
+if (recordSrc.includes('chooseMedia')) {
+  line('warn', '用到相机 / 相册（拍照识食）', '后台隐私指引须声明：照片仅用于当次识别，识别完即丢弃、不留存')
+}
+if (recordSrc.includes('getRecorderManager')) {
+  line('warn', '用到麦克风（语音记一句）', '后台隐私指引须声明：录音仅用于当次转写，转完即丢弃、不留存')
+}
+
 // ── 5. LLM 与深度合成 ──
 console.log('\n【AI 能力】')
 const providerFile = path.join(ROOT, 'server', 'src', 'llm', 'provider.js')

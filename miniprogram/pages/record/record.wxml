@@ -12,6 +12,28 @@
           bindtap="toggleTag" data-tag="{{item.label}}">{{item.label}}</view>
   </view>
 
+  <!-- 输入端：拍一张 / 说一句。都只往上面的框里填字，不直接落库 -->
+  <view class="tool-row mt-16">
+    <view class="tool {{busy ? 'tool-dim' : ''}}" bindtap="pickPhoto">
+      <text class="tool-ico">📷</text>
+      <text class="tool-txt">拍张照</text>
+    </view>
+    <view class="tool {{recording ? 'tool-rec' : ''}} {{busy ? 'tool-dim' : ''}}"
+          bindtouchstart="startRecord" bindtouchend="stopRecord" bindtouchcancel="cancelRecord">
+      <text class="tool-ico">🎤</text>
+      <text class="tool-txt">{{recording ? recLabel : '按住说话'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{hint}}" class="t-mini mt-8">{{hint}}</view>
+
+  <view wx:if="{{dishes.length}}" class="dish-box mt-16">
+    <view class="row wrap">
+      <text wx:for="{{dishes}}" wx:key="name" class="dish">{{item.name}} · {{item.portion}} · {{item.kcal}} kcal</text>
+    </view>
+    <view class="t-mini mt-8">照片没有保存。上面那句话认错了就改，或者整段删掉。</view>
+  </view>
+
   <view class="btn btn-primary mt-16" bindtap="save">
     <text wx:if="{{saving}}">正在拆解…</text>
     <text wx:else>存进档案</text>

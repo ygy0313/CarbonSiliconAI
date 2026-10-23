@@ -85,8 +85,11 @@ async function main() {
   ok('写清票据只存指纹', pText.includes('SHA-256'))
   ok('写清票据不进 URL', pText.includes('请求头'))
   ok('写清审计可自查', pText.includes('审计'))
-  ok('写清唯一外部请求', pText.includes('open-meteo'))
-  ok('写清 LLM 当前未接入', pText.includes('未接入'))
+  ok('写清天气这一处外部请求', pText.includes('open-meteo'))
+  ok('写清照片不留存', pText.includes('照片') && pText.includes('不写盘') && pText.includes('即丢弃'))
+  ok('写清录音不留存', pText.includes('录音') && pText.includes('转完即丢弃'))
+  ok('写清相机与麦克风的用途', pText.includes('相机') && pText.includes('麦克风'))
+  ok('写清当前仍是本地规则引擎', pText.includes('本地规则引擎'))
 
   console.log('\n【3】用户协议：边界得说明白')
   ok('节数不少于 12', (terms?.sections || []).length >= 12, `节数=${terms?.sections?.length}`)

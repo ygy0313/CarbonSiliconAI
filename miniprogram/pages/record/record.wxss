@@ -41,3 +41,50 @@
   padding: 8rpx 0;
 }
 .hint-row .dot { margin-top: 14rpx; }
+
+/* ── 拍张照 / 按住说话 ─────────────────────── */
+.tool-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+}
+.tool {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 22rpx 16rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  background: var(--surface);
+}
+.tool:active { opacity: 0.7; }
+.tool-dim { opacity: 0.45; }
+.tool-rec {
+  border-color: var(--amber);
+  background: var(--amber-dim);
+}
+.tool-ico {
+  font-size: 30rpx;
+  margin-right: 10rpx;
+}
+.tool-txt {
+  font-size: 26rpx;
+  color: var(--text-2);
+}
+.tool-rec .tool-txt { color: var(--amber); }
+
+.dish-box {
+  padding: 20rpx 22rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 14rpx;
+}
+.dish {
+  font-size: 24rpx;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border-radius: 8rpx;
+  padding: 6rpx 12rpx;
+  margin: 0 10rpx 10rpx 0;
+}

@@ -23,11 +23,13 @@ cd server && node src/index.js     # 零依赖，不需要 npm install
 ```bash
 node server/scripts/smoke.js              # 33 项端到端
 node server/scripts/check-agents.js       # 33 项能力（意图路由/选酒判断/记梦结构/边界）
-node server/scripts/check-legal.js        # 73 项法律文本（条款覆盖/禁词/H5 直出/XSS）
+node server/scripts/check-legal.js        # 76 项法律文本（条款覆盖/禁词/H5 直出/XSS）
+node server/scripts/check-input.js         # 39 项输入端（识图/转写校验与「不留存」承诺）
 node server/scripts/check-privacy.js      # 52 项隐私链路（脱敏/授权/导出/恢复）
 node server/scripts/check-experience.js   # 53 项经验资产（闭环/双环/隔离/双实现同构）
 node server/scripts/verify-ganzhi.js      # 26 项干支历算
 node miniprogram/scripts/check-wxml.js    # 小程序模板体检
+node miniprogram/scripts/check-mp.js       # 47 项小程序结构（注册/tabBar/页面逻辑桩）
 node miniprogram/scripts/preflight.js     # 提审自检（AppID/域名/禁词/隐私/LLM 开关）
 cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 ```
@@ -47,6 +49,7 @@ cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 | 三档组局 | 「一个人想玩」出有结构的独处方案；「和 AI 凑一局」生成有立场、会隐瞒、能顶嘴的 NPC 班底（同一天同一人，NPC 固定不换）；「六个人周末」拼出本+场地+茶歇+时间线+待办 |
 | 选酒 | 接「九月葡园」在售酒款：先看送给谁、什么场合，再看预算带与配餐，五行风味只做最后一票；卡片写醒酒与温度，**不报价**（价差大，报了就会被打脸） |
 | 记梦 | 把梦拆成意象 + 情绪，指出反复出现的主题（同名意象二次出现会引用上一次的记忆），再给三幕故事骨架与开头第一句；明确不解梦、不预测 |
+| 拍张照 / 说一句 | 拍照识食（复用「给您请安」的识菜规则）与语音转写，都只把内容变成一句话填进输入框：照片与录音在内存里过一遍就丢，不落盘、不进档案；识别完你不点保存，什么都不会写进去 |
 | 脱敏档案 | 原文 AES-256-GCM 加密进保险箱，主库只有脱敏文本；手机号/证件号/地址入库即变占位符 |
 | 票据授权 | 读 prompt、导出、还原原文，各自签发票据：有用途、有期限、有次数，明文只出现一次，全程审计 |
 | 标准导出 | `qijuzhu/v1` 格式，sha256 校验和 + HMAC 签名，可导入恢复成新档案 —— 换设备、换 App、二十年后也能读 |
@@ -55,7 +58,7 @@ cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 | 经验资产 | 反思回路把重复出现的「采纳/否决」压成可执行规则；经验参与推荐仲裁（不是贴标签）；每次应用结果回写有效性评分；反复奏效自动固化为技能 |
 | 双环约束 | Agent 可自动调分数（单环）；「多少分算有效、几次应用才够升级」必须用户确认（双环），改动进审计 |
 | C++ 内核 | 经验评分与反思挖掘跑在独立 C++17 服务（零外部依赖，`make` 一行编译），CPU 密集活不占 Node 事件循环；内核不可用时自动回落算法一致的 JS 镜像 |
-| 双端 | H5（零构建，与 API 同源）+ 微信原生小程序，共用一套后端 |
+| 双端 | H5（零构建，与 API 同源）+ 微信原生小程序，共用一套后端；小程序五页对齐 H5：执笔 / 记录 / 经验 / 档案 / 契 |
 
 ## 目录
 
@@ -66,7 +69,7 @@ cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 │   ├── src/agents/         生活服务能力（声明 needs/provides，编排器自动组装）
 │   ├── src/services/       抽取 / 画像 / 编排 / 核对 / 经验 / 反思 / prompt / 导出
 │   ├── src/core/           C++ 内核客户端 + 算法一致的 JS 镜像（降级用）
-│   └── scripts/            六套回归测试
+│   └── scripts/            七套回归测试
 ├── core/                   C++17 计算内核（零外部依赖，端口 8788）
 │   ├── include/            迷你 JSON、经验评分/挖掘算法
 │   └── src/                POSIX socket 服务（仅监听本机）+ 自检 + 压测

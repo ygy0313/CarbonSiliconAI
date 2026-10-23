@@ -9,7 +9,7 @@ function setBase(base) {
   BASE = String(base || '').replace(/\/$/, '')
 }
 
-function request(path, { method = 'GET', data = null, token = null } = {}) {
+function request(path, { method = 'GET', data = null, token = null, timeout = TIMEOUT } = {}) {
   return new Promise((resolve, reject) => {
     const header = { 'Content-Type': 'application/json' }
     // 令牌只放请求头，绝不进 URL（URL 会进访问日志）
@@ -18,7 +18,7 @@ function request(path, { method = 'GET', data = null, token = null } = {}) {
       url: BASE + path,
       method,
       data: data || undefined,
-      timeout: TIMEOUT,
+      timeout,
       header,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.ok) {
@@ -96,4 +96,27 @@ module.exports = {
 
   // ── 法律文本（隐私政策 / 用户协议）──
   getLegal: id => request(`/api/legal/${id}`),
+
+  // ── 输入端：拍照识食 / 语音转写（都只转换，不落库）──
+  // 这两条比普通请求慢：识图 20s、转写 30s，按后端的时间线留出余量。
+  recognizeMeal: (personId, image, label) =>
+    request(`/api/persons/${personId}/vision/meal`, { method: 'POST', data: { image, label }, timeout: 25000 }),
+  transcribe: (personId, audio, mime) =>
+    request(`/api/persons/${personId}/voice/transcribe`, { method: 'POST', data: { audio, mime }, timeout: 35000 }),
+
+  // ── 经验资产 ──
+  getExperiences: (personId, status) =>
+    request(`/api/persons/${personId}/experiences${status ? `?status=${status}` : ''}`),
+  getExperienceAssets: personId => request(`/api/persons/${personId}/experiences/assets`),
+  reflectExperiences: personId =>
+    request(`/api/persons/${personId}/experiences/reflect`, { method: 'POST', data: {}, timeout: 20000 }),
+  applyExperience: (personId, id, outcome) =>
+    request(`/api/persons/${personId}/experiences/${id}/apply`, { method: 'POST', data: { outcome } }),
+  setExperienceStatus: (personId, id, status) =>
+    request(`/api/persons/${personId}/experiences/${id}/status`, { method: 'POST', data: { status } }),
+  setCriteria: (personId, thresholds) =>
+    request(`/api/persons/${personId}/criteria`, {
+      method: 'POST',
+      data: { thresholds, confirm: true },
+    }),
 }
