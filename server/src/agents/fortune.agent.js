@@ -78,7 +78,7 @@ registry.register({
   service: '起居注 · 今日节律',
   name: '今日节律',
   icon: '☯',
-  description: '流年/流月/流日三层干支给出今日节奏与宜忌味道（文化向，不做吉凶断言）',
+  description: '流年/流月/流日三层干支给出今日节奏与宜忌味道（传统文化向，只谈节奏不谈预测）',
   intents: [],
   needs: [],
   provides: ['context.fortune'],

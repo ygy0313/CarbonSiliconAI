@@ -128,7 +128,7 @@ function viewHome() {
 
         <div class="elements">${elBars}</div>
         <div class="section-note" style="margin:12px 0 0">
-          年柱以立春为界、月柱以十二节为界、日柱按北京时间换日。只谈节奏与宜忌方向，不作吉凶断言。
+          年柱以立春为界、月柱以十二节为界、日柱按北京时间换日。只谈节奏与宜忌方向，不作任何预测性断言。
         </div>
       </div>
     </section>

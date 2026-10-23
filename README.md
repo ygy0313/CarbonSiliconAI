@@ -27,6 +27,7 @@ node server/scripts/check-privacy.js      # 52 项隐私链路（脱敏/授权/�
 node server/scripts/check-experience.js   # 53 项经验资产（闭环/双环/隔离/双实现同构）
 node server/scripts/verify-ganzhi.js      # 26 项干支历算
 node miniprogram/scripts/check-wxml.js    # 小程序模板体检
+node miniprogram/scripts/preflight.js     # 提审自检（AppID/域名/禁词/隐私/LLM 开关）
 cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 ```
 
