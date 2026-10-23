@@ -23,6 +23,11 @@ Page({
     total: 12,
     recent: [],
     conflicts: 0,
+    // 同意门：版本号对齐才放行写入，弹层可暂时关闭但写入仍然拦住
+    needAck: false,
+    declined: false,
+    legalVersion: '',
+    serviceCount: 9,
     quick: [
       { key: 'eat', label: '今天吃什么', text: '今天中午吃什么，别太辣' },
       { key: 'gather', label: '组个局', text: '周六想和朋友组个局，6个人' },
@@ -34,6 +39,33 @@ Page({
 
   onShow() {
     this.load()
+    this.checkLegal()
+  },
+
+  async checkLegal() {
+    const r = await app.ensureLegal()
+    this.setData({ needAck: r.needAck, legalVersion: r.version })
+  },
+
+  ackLegal() {
+    app.ackLegal(this.data.legalVersion)
+    this.setData({ needAck: false, declined: false })
+    wx.showToast({ title: '记下了', icon: 'none' })
+  },
+
+  // 不同意就只是不写：浏览照常，写入入口全部拦住
+  declineLegal() {
+    this.setData({ needAck: false, declined: true })
+    wx.showToast({ title: '那就不记。随时可以改主意', icon: 'none' })
+  },
+
+  reopenLegal() {
+    this.setData({ needAck: true, declined: false })
+  },
+
+  openDoc(e) {
+    const doc = e.currentTarget.dataset.doc || 'privacy'
+    wx.navigateTo({ url: '/pages/legal/legal?doc=' + doc })
   },
 
   async load() {
@@ -62,6 +94,10 @@ Page({
     const identityFact = factMap['self.identity']
     const name = (silicon.person && silicon.person.name) || '我'
 
+    // 服务条数以服务端注册表为准，避免文案写死之后跟实现脱节
+    const meta = app.globalData.meta
+    const serviceCount = (meta && meta.services && meta.services.length) || 9
+
     this.setData({
       loading: false,
       offline,
@@ -75,19 +111,23 @@ Page({
       dims,
       filled,
       recent,
+      serviceCount,
     })
   },
 
   goChat(e) {
+    if (!app.guardLegal()) return this.reopenLegal()
     const text = e.currentTarget.dataset.text || ''
     wx.navigateTo({ url: '/pages/chat/chat?text=' + encodeURIComponent(text) })
   },
 
   goChatEmpty() {
+    if (!app.guardLegal()) return this.reopenLegal()
     wx.navigateTo({ url: '/pages/chat/chat' })
   },
 
   goRecord() {
+    if (!app.guardLegal()) return this.reopenLegal()
     wx.switchTab({ url: '/pages/record/record' })
   },
 

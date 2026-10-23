@@ -40,6 +40,8 @@ const vault = require('./security/vault')
 const grant = require('./security/grant')
 const { redact, redactDeep } = require('./security/redact')
 const llm = require('./llm/provider')
+const legal = require('./domain/legal')
+const legalPage = require('./services/legal.page')
 const { seedDemo } = require('./seed')
 
 validate()
@@ -146,7 +148,33 @@ const routes = [
         defaults: '记录先脱敏再入库，原文只存密文；读取 prompt / 导出 / 还原原文均需显式授权',
       },
       quiz: { total: quiz.QUESTIONS.length, groups: Object.keys(quiz.QUESTIONS.reduce((a, q) => { a[q.group] = 1; return a }, {})) },
+      legal: { version: legal.LEGAL_VERSION, effectiveAt: legal.EFFECTIVE_AT, docs: legal.IDS },
     }),
+  },
+
+  // ── 法律文本：小程序与 H5 同源，避免两端口径不一致 ──
+  {
+    method: 'GET',
+    pattern: /^\/api\/legal$/,
+    handler: async () => ({
+      version: legal.LEGAL_VERSION,
+      effectiveAt: legal.EFFECTIVE_AT,
+      operator: legal.OPERATOR,
+      digest: legal.digest(),
+      docs: legal.IDS.map(id => {
+        const d = legal.get(id)
+        return { id: d.id, title: d.title, subtitle: d.subtitle, version: d.version, effectiveAt: d.effectiveAt, sections: d.sections }
+      }),
+    }),
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/legal\/(privacy|terms)$/,
+    handler: async ({ params }) => {
+      const doc = legal.get(params[0])
+      if (!doc) throw new NotFoundError('没有这份文本')
+      return { ...doc, digest: legal.digest(), operator: legal.OPERATOR, plain: legal.toPlain(doc) }
+    },
   },
   {
     method: 'GET',
@@ -665,6 +693,24 @@ const server = http.createServer(async (req, res) => {
 
   // H5 静态资源：与 API 同源部署，省一次跨域与一个域名
   if (req.method === 'GET' && !pathname.startsWith('/api/')) {
+    // 法律文本：服务端直出全文，审核员点开即见，不依赖前端 JS 与二次请求
+    const legalMatch = pathname.match(/^\/legal\/(privacy|terms)$/)
+    if (legalMatch) {
+      const html = legalPage.render(legalMatch[1], { from: url.searchParams.get('from') || '/' })
+      if (html) {
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Length': Buffer.byteLength(html),
+          'Cache-Control': 'no-cache',
+          'X-Content-Type-Options': 'nosniff',
+        })
+        return res.end(html)
+      }
+    }
+    if (pathname === '/legal' || pathname === '/legal/') {
+      res.writeHead(302, { Location: '/legal/privacy' })
+      return res.end()
+    }
     if (serveStatic(req, res, pathname)) return
   }
 

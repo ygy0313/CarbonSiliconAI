@@ -17,7 +17,8 @@
 | 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
 | 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
 | 隐私架构 | 原文 AES-256-GCM 进保险箱（`QJZ_PASSPHRASE` 派生），主库只存脱敏文本；读 prompt/导出/还原需 scope 票据 |
-| 测试 | `smoke.js` 33 + `check-agents.js` 33 + `check-privacy.js` 52 + `check-experience.js` 53 + `verify-ganzhi.js` 26 + WXML + 内核自检 17，CI 全跑（合计 197 断言） |
+| 测试 | `smoke.js` 33 + `check-agents.js` 33 + `check-legal.js` 73 + `check-privacy.js` 52 + `check-experience.js` 53 + `verify-ganzhi.js` 26 + WXML + 内核自检 17，CI 全跑（合计 270 断言） |
+| 法律文本 | 唯一来源 `server/src/domain/legal.js`；H5 `/legal/privacy|terms` 服务端直出，小程序 `pages/legal` 拉同一接口；版本号 `LEGAL_VERSION` 变了用户要重新同意（storage `legalAck`）；运营者占位用环境变量 `QJZ_OPERATOR_NAME` 覆盖 |
 | 服务能力 | 膳食 / 节律 / 天气 / 日程 / 选本 / 场地 / 茶歇 / **选酒**（`wine.suggest`）/ **记梦**（`dream.record`） |
 | 经验层 | `experiences`（可执行规则，资产核心）+ `criteria`（双环约束点，带版本号）；反思入口 `POST /experiences/reflect` |
 
@@ -48,6 +49,7 @@ node miniprogram/scripts/check-wxml.js
 15. 改 `core/*.cpp` 后必须重启 8788 进程，否则跑旧二进制。
 16. **选酒不报价**：卡片只写价位带 + 「价格以店铺为准」，正文不得出现「数字+元」（回归脚本扫描）。
 17. **记梦不解梦**：只给意象/情绪/三幕骨架，禁用「预示/吉凶/财运/姻缘/命中注定」，禁词进回归断言。
+18. **对外文案一份只写一遍**：法律文本在 `domain/legal.js`，品牌在 `brand.js`；H5 与小程序都从服务端取，不许在页面里再抄一份（check-legal 守着）。
 9. 控制器只做解析/调用/格式化，不写业务判断。
 10. 事实冲突进 conflict 队列，不自动覆盖。
 

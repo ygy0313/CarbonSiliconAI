@@ -60,6 +60,11 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-agents.js
 
+      - name: 法律文本回归（73 项：条款覆盖/禁词/H5 直出/XSS）
+        run: |
+          cd server
+          NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-legal.js
+
       - name: C++ 内核自检
         run: |
           cd core

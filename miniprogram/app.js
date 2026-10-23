@@ -26,6 +26,43 @@ App({
     api.setBase(base)
   },
 
+  // 同意状态：本地只存版本号，不存任何身份信息。
+  // 版本跟着服务端的法律文本走 —— 文本一改，版本号变，就要重新同意。
+  getAckVersion() {
+    return wx.getStorageSync('legalAck') || ''
+  },
+
+  async ensureLegal() {
+    const local = this.getAckVersion()
+    let remote = this.globalData.legalVersion
+    if (!remote) {
+      try {
+        const meta = await api.getMeta()
+        this.globalData.meta = meta
+        remote = (meta && meta.legal && meta.legal.version) || ''
+        this.globalData.legalVersion = remote
+      } catch (_) {
+        // 取不到就不弹：没网时不该拦着人看页面
+        remote = ''
+      }
+    }
+    if (!remote) return { needAck: false, version: '' }
+    return { needAck: local !== remote, version: remote }
+  },
+
+  ackLegal(version) {
+    wx.setStorageSync('legalAck', version || this.globalData.legalVersion || '')
+  },
+
+  // 同意之后才允许写入。没同意就引导回首页那层。
+  guardLegal() {
+    const v = this.globalData.legalVersion
+    if (!v) return true
+    if (this.getAckVersion() === v) return true
+    wx.showToast({ title: '先看一眼隐私政策', icon: 'none' })
+    return false
+  },
+
   async loadSilicon(force) {
     if (this.globalData.silicon && !force) return this.globalData.silicon
     try {

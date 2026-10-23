@@ -342,6 +342,18 @@ function viewArchive() {
         </div>
         <div id="redact-out" style="margin-top:12px"></div>
       </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">规则与条款</h2>
+      <div class="panel">
+        <a class="legal-link" href="/legal/privacy?from=%23%2Farchive" target="_blank">
+          <b>隐私政策</b><span>原文只存密文，读它要签一张有时限的票</span>
+        </a>
+        <a class="legal-link" href="/legal/terms?from=%23%2Farchive" target="_blank">
+          <b>用户协议</b><span>它给建议，你拿主意</span>
+        </a>
+      </div>
     </section>`
 }
 

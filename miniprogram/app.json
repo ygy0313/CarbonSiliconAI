@@ -6,7 +6,8 @@
     "pages/record/record",
     "pages/profile/profile",
     "pages/services/services",
-    "pages/grant/grant"
+    "pages/grant/grant",
+    "pages/legal/legal"
   ],
   "window": {
     "backgroundTextStyle": "dark",

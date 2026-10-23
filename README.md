@@ -23,6 +23,7 @@ cd server && node src/index.js     # 零依赖，不需要 npm install
 ```bash
 node server/scripts/smoke.js              # 33 项端到端
 node server/scripts/check-agents.js       # 33 项能力（意图路由/选酒判断/记梦结构/边界）
+node server/scripts/check-legal.js        # 73 项法律文本（条款覆盖/禁词/H5 直出/XSS）
 node server/scripts/check-privacy.js      # 52 项隐私链路（脱敏/授权/导出/恢复）
 node server/scripts/check-experience.js   # 53 项经验资产（闭环/双环/隔离/双实现同构）
 node server/scripts/verify-ganzhi.js      # 26 项干支历算
@@ -65,7 +66,7 @@ cd core && make && ./bin/qjz-core selftest   # C++ 内核 17 项自检
 │   ├── src/agents/         生活服务能力（声明 needs/provides，编排器自动组装）
 │   ├── src/services/       抽取 / 画像 / 编排 / 核对 / 经验 / 反思 / prompt / 导出
 │   ├── src/core/           C++ 内核客户端 + 算法一致的 JS 镜像（降级用）
-│   └── scripts/            五套回归测试
+│   └── scripts/            六套回归测试
 ├── core/                   C++17 计算内核（零外部依赖，端口 8788）
 │   ├── include/            迷你 JSON、经验评分/挖掘算法
 │   └── src/                POSIX socket 服务（仅监听本机）+ 自检 + 压测

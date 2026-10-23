@@ -93,17 +93,37 @@ if (hits.length) {
 
 // ── 4. 隐私与协议 ──
 console.log('\n【合规入口】')
-const pageDirs = fs.existsSync(path.join(MP, 'pages'))
-  ? fs.readdirSync(path.join(MP, 'pages'))
-  : []
-const hasPrivacyPage = pageDirs.some(d => /privacy|agreement|terms|about/i.test(d))
-const mentionsPrivacy = uiFiles.some(f => {
-  const src = fs.readFileSync(f, 'utf8')
-  return src.includes('隐私政策') || src.includes('用户协议')
-})
-if (hasPrivacyPage && mentionsPrivacy) line('ok', '有隐私政策 / 用户协议页面与入口')
-else if (mentionsPrivacy) line('warn', '文案提到了隐私政策，但没有独立页面', '审核通常要求可点开的完整文本')
-else line('warn', '缺隐私政策 / 用户协议入口', '收集档案、手机号等信息必须有；先在网页端放，再补小程序页')
+const legalDir = path.join(MP, 'pages', 'legal')
+const legalFiles = ['legal.js', 'legal.wxml', 'legal.wxss', 'legal.json']
+const legalMissing = legalFiles.filter(f => !fs.existsSync(path.join(legalDir, f)))
+const appJsonSrc = fs.readFileSync(path.join(MP, 'app.json'), 'utf8')
+const legalInApp = appJsonSrc.includes('pages/legal/legal')
+const entryCount = uiFiles.filter(f => fs.readFileSync(f, 'utf8').includes('/pages/legal/legal')).length
+const hasAckLayer = fs.readFileSync(path.join(MP, 'pages', 'index', 'index.wxml'), 'utf8').includes('needAck')
+const serverSrc = fs.readFileSync(path.join(ROOT, 'server', 'src', 'index.js'), 'utf8')
+const h5Legal = serverSrc.includes('legalPage.render') && serverSrc.includes('/legal/')
+
+if (legalMissing.length === 0) line('ok', '隐私政策 / 用户协议页面四件套齐全')
+else line('bad', '页面文件缺失', legalMissing.join(', '))
+
+if (legalInApp) line('ok', '页面已注册进 app.json')
+else line('bad', 'app.json 里没有 pages/legal/legal', '页面存在但打不开')
+
+if (entryCount >= 2) line('ok', `有 ${entryCount} 处入口指向条款页（首页同意层 + 档案页）`)
+else line('warn', `只有 ${entryCount} 处入口`, '建议首页与档案页各留一个，审核员会找')
+
+if (hasAckLayer) line('ok', '首次使用有同意层（未同意不写数据）')
+else line('warn', '没有同意层', '收集个人信息前应先取得同意')
+
+if (h5Legal) line('ok', 'H5 端 /legal/privacy、/legal/terms 直出全文')
+else line('bad', 'H5 端缺法律文本路由', '审核员可能在网页端核对')
+
+const operatorFile = path.join(ROOT, 'server', 'src', 'domain', 'legal.js')
+const operatorSrc = fs.existsSync(operatorFile) ? fs.readFileSync(operatorFile, 'utf8') : ''
+const placeholder = /经营主体登记办理中|（拟设）|主体登记办理中/.test(operatorSrc)
+if (!operatorSrc) line('bad', '缺法律文本源文件', 'server/src/domain/legal.js')
+else if (placeholder) line('warn', '运营者名称还是占位', '执照下来后用 QJZ_OPERATOR_NAME 环境变量覆盖，别改代码')
+else line('ok', '运营者名称已落到真实主体')
 
 // ── 5. LLM 与深度合成 ──
 console.log('\n【AI 能力】')

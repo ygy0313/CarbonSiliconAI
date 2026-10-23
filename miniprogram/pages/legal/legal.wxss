@@ -1,0 +1,78 @@
+/* 法律文本页：只要可读，不要花哨。行高按长文调宽一点，避免密不透风。 */
+
+.digest {
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 24rpx 24rpx 8rpx;
+}
+.digest-title {
+  font-size: 24rpx;
+  color: var(--text-3);
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
+}
+.digest-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 14rpx;
+}
+.digest-item .dot {
+  margin-top: 14rpx;
+  margin-right: 14rpx;
+  flex-shrink: 0;
+}
+
+.legal-sec {
+  margin-top: 40rpx;
+}
+.legal-h {
+  font-size: 30rpx;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+.legal-p {
+  display: block;
+  font-size: 27rpx;
+  line-height: 1.85;
+  color: var(--text-2);
+  margin-bottom: 12rpx;
+}
+.legal-list {
+  margin: 4rpx 0 12rpx;
+}
+.legal-li {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 10rpx;
+}
+.legal-dot {
+  font-size: 27rpx;
+  line-height: 1.85;
+  color: var(--text-3);
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+.legal-li-text {
+  flex: 1;
+  font-size: 27rpx;
+  line-height: 1.85;
+  color: var(--text-2);
+}
+
+.legal-foot {
+  margin-top: 40rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+.legal-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+}

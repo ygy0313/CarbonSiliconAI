@@ -1,5 +1,9 @@
 <view class="container">
 
+  <view wx:if="{{declined}}" class="ack-bar" bindtap="reopenLegal">
+    <text class="t-mini">还没同意隐私政策，记录暂不会保存 · 点这里看看</text>
+  </view>
+
   <view class="row gap-16 mt-8">
     <view class="avatar">{{initial}}</view>
     <view class="grow">
@@ -47,7 +51,7 @@
     </view>
   </view>
   <view class="services-entry" bindtap="goServices">
-    <text class="t-sub">已接入 7 个生活服务 · 查看服务市场</text>
+    <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
   </view>
 
   <view class="section">
@@ -69,4 +73,22 @@
 
   <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
 
+</view>
+
+<!-- 首次使用前的同意层：不挡住看，只挡住写 -->
+<view wx:if="{{needAck}}" class="ack-mask">
+  <view class="ack-panel">
+    <view class="ack-title">先说清三件事</view>
+    <view class="ack-body">
+      <text class="ack-p">你说的每句话，先抹掉手机号、证件号、门牌这类信息，再加密单独存放。主库里只有抹过的版本。</text>
+      <text class="ack-p">要读原文、要导出、要还原身份字段，都得你亲手签一张有时限的票，用完记一笔账，你自己能查。</text>
+      <text class="ack-p">数据归你：随时能改、能导出带走、能删。不卖第三方，不拿去训练对外模型，当前版本没有广告。</text>
+    </view>
+    <view class="ack-links">
+      <text class="ack-link" data-doc="privacy" bindtap="openDoc">《隐私政策》</text>
+      <text class="ack-link" data-doc="terms" bindtap="openDoc">《用户协议》</text>
+    </view>
+    <view class="btn btn-primary mt-16" bindtap="ackLegal">同意，开始记</view>
+    <view class="ack-decline" bindtap="declineLegal">先不同意，只看看</view>
+  </view>
 </view>

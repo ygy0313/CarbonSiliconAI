@@ -93,4 +93,7 @@ module.exports = {
     request(`/api/persons/${personId}/quiz`, { method: 'POST', data: { questionId, optionKey } }),
   getGanzhi: (personId, date) =>
     request(`/api/persons/${personId}/ganzhi${date ? `?date=${date}` : ''}`),
+
+  // ── 法律文本（隐私政策 / 用户协议）──
+  getLegal: id => request(`/api/legal/${id}`),
 }

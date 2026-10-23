@@ -192,6 +192,11 @@ Page({
     this.setData({ showSettings: !this.data.showSettings })
   },
 
+  openDoc(e) {
+    const doc = e.currentTarget.dataset.doc || 'privacy'
+    wx.navigateTo({ url: '/pages/legal/legal?doc=' + doc })
+  },
+
   saveBase() {
     const that = this
     wx.showModal({

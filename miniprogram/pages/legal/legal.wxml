@@ -1,0 +1,46 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">正在取卷…</view>
+
+  <view wx:elif="{{error}}" class="card">
+    <text class="t-body">{{error}}</text>
+    <view class="btn btn-ghost mt-16" bindtap="retry">重试</view>
+  </view>
+
+  <block wx:else>
+    <view class="t-title">{{doc.title}}</view>
+    <view class="t-mini mt-8">{{doc.subtitle}}</view>
+    <view class="t-mini mt-8">版本 {{doc.version}} · {{doc.effectiveAt}} 生效</view>
+
+    <view wx:if="{{docId === 'privacy' && digest.length}}" class="digest mt-24">
+      <view class="digest-title">五句话说清</view>
+      <view wx:for="{{digest}}" wx:key="*this" class="digest-item">
+        <view class="dot dot-idle"></view>
+        <text class="t-body grow">{{item}}</text>
+      </view>
+    </view>
+
+    <view wx:for="{{sections}}" wx:key="title" class="legal-sec">
+      <view class="legal-h">{{item.title}}</view>
+      <text wx:for="{{item.paragraphs}}" wx:for-item="p" wx:key="*this" class="legal-p">{{p}}</text>
+      <view wx:if="{{item.items.length}}" class="legal-list">
+        <view wx:for="{{item.items}}" wx:for-item="it" wx:key="*this" class="legal-li">
+          <text class="legal-dot">·</text>
+          <text class="legal-li-text">{{it}}</text>
+        </view>
+      </view>
+      <text wx:for="{{item.paragraphs_after}}" wx:for-item="p" wx:key="*this" class="legal-p">{{p}}</text>
+    </view>
+
+    <view class="legal-foot">
+      <text class="t-mini">运营者：{{operator.name}}</text>
+      <text class="t-mini mt-8">联系邮箱：{{operator.contact}}（点此复制）</text>
+    </view>
+
+    <view class="legal-actions mt-24">
+      <view class="btn btn-ghost grow" bindtap="copyMail">复制邮箱</view>
+      <view class="btn btn-ghost grow" bindtap="switchDoc">看{{docId === 'terms' ? '隐私政策' : '用户协议'}}</view>
+    </view>
+  </block>
+
+</view>
