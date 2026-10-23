@@ -4,29 +4,27 @@
     <text class="t-mini">还没同意隐私政策，记录暂不会保存 · 点这里看看</text>
   </view>
 
-  <view class="row gap-16 mt-8">
-    <view class="avatar">{{initial}}</view>
-    <view class="grow">
-      <view class="t-hero">{{name}}</view>
-      <view class="t-sub">{{identity}}</view>
+  <!-- 主视觉：一块深绿，把「你是谁 + 档案长到哪了」一次说清 -->
+  <view class="hero mt-8">
+    <view class="row gap-16">
+      <view class="avatar avatar-on-dark">{{initial}}</view>
+      <view class="grow">
+        <view class="hero-title">{{name}}</view>
+        <view class="hero-sub">{{identity}}</view>
+      </view>
+      <text class="hero-pct">{{completenessPct}}%</text>
     </view>
+
+    <view class="hero-bar mt-24">
+      <view class="hero-bar-fill" style="width:{{completenessPct}}%"></view>
+    </view>
+    <view class="dim-grid mt-16">
+      <view wx:for="{{dims}}" wx:key="key" class="dim {{item.cls}}"></view>
+    </view>
+    <view class="hero-mini mt-16">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
   </view>
 
   <view class="t-mini mt-8" wx:if="{{offline}}">离线演示数据 · 后端未连接</view>
-
-  <view class="card card-primary mt-24">
-    <view class="row between">
-      <text class="t-mini">档案完整度</text>
-      <text class="t-green t-title">{{completenessPct}}%</text>
-    </view>
-    <view class="bar mt-16">
-      <view class="bar-fill" style="width:{{completenessPct}}%"></view>
-    </view>
-    <view class="dim-grid mt-24">
-      <view wx:for="{{dims}}" wx:key="key" class="dim {{item.cls}}"></view>
-    </view>
-    <view class="t-mini mt-16">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
-  </view>
 
   <view class="section">
     <text class="section-title">它现在这样理解你</text>

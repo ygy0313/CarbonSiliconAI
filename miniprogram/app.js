@@ -4,7 +4,8 @@ const api = require('./utils/api')
 App({
   globalData: {
     personId: 'p_owner',
-    apiBase: 'http://127.0.0.1:8787',
+    // 默认连线上 ECS；本地开发在「档案 → 开发设置 → 服务地址」填 http://127.0.0.1:8787
+    apiBase: 'http://8.136.205.105:8787',
     silicon: null,
     offline: false,
     // 授权票据：只在内存里，退出小程序即失效（明文票据绝不落 storage）

@@ -1,3 +1,32 @@
+/* ── 主视觉块（深绿底，所有子元素用浅色系）───────── */
+.avatar-on-dark {
+  background: rgba(255, 255, 255, 0.14);
+  color: #e9f2ec;
+}
+.hero-pct {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: #9fe3bd;
+  flex-shrink: 0;
+}
+.hero-bar {
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.hero-bar-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: #7fd6a8;
+  transition: width 0.3s ease;
+}
+.hero-mini {
+  font-size: 22rpx;
+  color: #a8c0b4;
+  line-height: 1.6;
+}
+
 .dim-grid {
   display: flex;
   flex-wrap: wrap;
@@ -7,11 +36,11 @@
   width: 56rpx;
   height: 14rpx;
   border-radius: 4rpx;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.16);
 }
-.dim.on { background: #4ade80; }
-.dim.weak { background: rgba(245, 185, 66, 0.6); }
-.dim.off { background: rgba(255, 255, 255, 0.07); }
+.dim.on { background: #7fd6a8; }
+.dim.weak { background: rgba(255, 255, 255, 0.5); }
+.dim.off { background: rgba(255, 255, 255, 0.16); }
 
 .hint-row {
   display: flex;
@@ -33,13 +62,13 @@
   flex: 1 1 30%;
   min-width: 200rpx;
   background: var(--surface);
-  border: 1rpx solid var(--line);
-  border-radius: 16rpx;
-  padding: 26rpx 20rpx;
+  border-radius: 20rpx;
+  padding: 28rpx 22rpx;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 130rpx;
+  min-height: 136rpx;
+  box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
 }
 .quick:active { background: var(--surface-2); }
 .quick-label {
@@ -85,7 +114,7 @@
   top: 0;
   bottom: 0;
   z-index: 90;
-  background: rgba(0, 0, 0, 0.62);
+  background: rgba(20, 24, 22, 0.45);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

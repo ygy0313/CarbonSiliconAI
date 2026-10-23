@@ -1,21 +1,24 @@
 /* 起居注 · H5 端样式
-   取向：宣纸底 + 墨色字 + 朱红点缀。不用圆角卡片堆砌，用线、用留白、用字重分层次。 */
+   取向：纸白底 + 白卡片 + 深绿点睛。留白优先，靠字重与间距分层。
+   与小程序共用一套色值（app.wxss），改色改这里和那里，别在页面里写死。
+   参照：星巴克 App 的清爽感 ／「给您请安」的绿白纸面。 */
 
 :root {
-  --paper: #f7f2e8;
-  --paper-2: #fffdf7;
-  --ink: #1e1a15;
-  --ink-2: #5b5445;
-  --ink-3: #8d8474;
-  --line: #ded2ba;
-  --line-2: #eee6d6;
-  --accent: #8c2f24;
-  --accent-soft: #f2e2dd;
-  --green: #3f6b4a;
-  --amber: #a8791f;
-  --shadow: 0 1px 2px rgba(30, 26, 21, .06), 0 8px 24px rgba(30, 26, 21, .05);
+  --paper: #fbfaf8;
+  --paper-2: #ffffff;
+  --ink: #1f2320;
+  --ink-2: #5b655f;
+  --ink-3: #7a847e;
+  --line: #e7e2d9;
+  --line-2: #f0ece4;
+  --accent: #00704a;
+  --accent-soft: rgba(0, 112, 74, .08);
+  --green: #00704a;
+  --green-deep: #1e3932;
+  --amber: #96690f;
+  --shadow: 0 1px 2px rgba(31, 35, 32, .04), 0 10px 30px rgba(31, 35, 32, .05);
 
-  --radius: 4px;
+  --radius: 12px;
   --maxw: 720px;
 }
 
@@ -39,7 +42,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image: repeating-linear-gradient(
-    45deg, rgba(140, 47, 36, .012) 0 1px, transparent 1px 4px
+    45deg, rgba(0, 112, 74, .014) 0 1px, transparent 1px 4px
   );
   z-index: 0;
 }

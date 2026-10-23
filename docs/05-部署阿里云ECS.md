@@ -1,7 +1,25 @@
 # 部署到阿里云 ECS（2 核 2 GiB）
 
-> 你现有的 ECS 完全够用。本服务是零依赖 Node 单进程，空载内存约 40-60 MB，
-> 加上 Nginx 与系统开销，2G 内存余量充足。瓶颈只会在「同时在线人数」，不在配置。
+> 你现有的 ECS 完全够用。本服务是零依赖 Node 单进程，实测空载 25 MB，
+> 瓶颈只会在「同时在线人数」，不在配置。
+
+## 零、已部署 · 日常只需两条命令
+
+**2026-10-23 起已部署在 8.136.205.105**（Alibaba Cloud Linux 4，systemd 守护，
+数据在 /srv/qijuzhu/app/server/data）。下面「一、二」节的手工步骤只在换新机器时才需要。
+
+```bash
+# 看状态（服务是否在跑、内存、健康）
+bash deploy/deploy.sh --check
+
+# 部署：要求工作区干净且已 push，服务器拉 GitHub 后重启，
+# 健康检查 + 业务链抽检，任一失败自动回滚到上一个 commit
+bash deploy/deploy.sh
+```
+
+CI 已接自动部署：main 分支 push 且测试全绿后，只要在仓库 Secrets 里配好
+`ECS_SSH_KEY / ECS_HOST / ECS_USER` 三个值就会自动上线；不配则跳过，不影响流水线。
+部署专用公钥已在服务器 authorized_keys 里（私钥在 ~/.ssh/qjz_deploy，别提交进仓库）。
 
 ## 一、架构
 

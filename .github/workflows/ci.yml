@@ -104,3 +104,45 @@ jobs:
       - name: 失败时输出服务日志
         if: failure()
         run: cat /tmp/server.log || true
+
+  # 测试全绿才部署。没配密钥就明确跳过，不让流水线红着。
+  # 需要的 Secrets：ECS_SSH_KEY（私钥全文）、ECS_HOST（IP 或域名）、ECS_USER（默认 root）
+  deploy:
+    name: 部署到阿里云 ECS
+    needs: [smoke]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检查是否配了部署密钥
+        id: guard
+        env:
+          KEY: ${{ secrets.ECS_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=跳过自动部署::未配置 ECS_SSH_KEY。本地仍可执行 bash deploy/deploy.sh 一键部署。"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 准备 SSH
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          KEY: ${{ secrets.ECS_SSH_KEY }}
+          HOST: ${{ secrets.ECS_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: 部署（拉代码 → 重启 → 健康检查 → 失败回滚）
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          QJZ_HOST: ${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}
+          QJZ_KEY: /home/runner/.ssh/deploy_key
+        run: bash deploy/deploy.sh --ci

@@ -16,6 +16,8 @@
 | 后端端口 | 8787（Node）/ 8788（core/ 内核，仅监听本机） |
 | 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
 | 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
+| ECS 生产 | `root@8.136.205.105`（id_rsa），Alibaba Cloud Linux 4，systemd 单元 `qijuzhu`，目录 `/srv/qijuzhu/app`，env 在 `/srv/qijuzhu/app.env`（含保险箱口令，勿丢勿提交）；部署 `bash deploy/deploy.sh`，查看 `--check`；CI deploy job 靠 Secrets `ECS_SSH_KEY/ECS_HOST/ECS_USER`（部署密钥 `~/.ssh/qjz_deploy` 已授权）；机器上另有 hermes 业务（8642/8644），勿动 |
+| 设计令牌 | 两端共用一套色值：纸白 `#FBFAF8` / 白卡 `#FFFFFF` / 星巴克绿 `#00704A` / 深绿块 `#1E3932` / 文字 `#1F2320`·`#5B655F`·`#7A847E` / 分隔 `#E7E2D9` / 琥珀 `#96690F`。改色只改 `miniprogram/app.wxss` 与 `web/style.css` 的 :root，页面不许写死颜色（审过无残留） |
 | 隐私架构 | 原文 AES-256-GCM 进保险箱（`QJZ_PASSPHRASE` 派生），主库只存脱敏文本；读 prompt/导出/还原需 scope 票据 |
 | 测试 | 后端：smoke 33 + agents 33 + legal 76 + input 39 + privacy 52 + experience 53 + ganzhi 26；小程序：check-mp 47 + WXML；内核自检 17。CI 全跑 |
 | 法律文本 | 唯一来源 `server/src/domain/legal.js`（当前 v2026.11）；H5 `/legal/privacy|terms` 服务端直出，小程序 `pages/legal` 拉同一接口；版本号 `LEGAL_VERSION` 变了用户要重新同意（storage `legalAck`）；运营者占位用环境变量 `QJZ_OPERATOR_NAME` 覆盖 |

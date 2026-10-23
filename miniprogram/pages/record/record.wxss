@@ -20,7 +20,7 @@
 
 .conflict {
   padding: 20rpx 24rpx;
-  border: 1rpx solid rgba(245, 185, 66, 0.35);
+  border: 1rpx solid rgba(150, 105, 15, 0.3);
   border-radius: 14rpx;
   background: var(--amber-dim);
   display: flex;

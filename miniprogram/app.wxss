@@ -1,36 +1,42 @@
 /* 起居注 · 设计系统
-   深色底 = 夜；绿色与琥珀 = 记事的温度。
+   取向：纸白底 + 白卡片 + 深绿点睛。留白优先，靠字重和间距分层，不靠边框和色块堆叠。
+   参照：星巴克 App 的清爽感 ／ 「给您请安」的绿白纸面。
    所有页面只引用这里的基础类，页面级 wxss 只写差异。 */
 
 page {
-  --bg: #0b0f14;
-  --surface: #141b23;
-  --surface-2: #1a232d;
-  --line: rgba(255, 255, 255, 0.07);
-  --text: #e8edf2;
-  --text-2: #8a9aab;
-  --text-3: #5c6b7a;
-  --green: #4ade80;
-  --green-dim: rgba(74, 222, 128, 0.12);
-  --amber: #f5b942;
-  --amber-dim: rgba(245, 185, 66, 0.12);
-  --red: #f26d6d;
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --surface-2: #f3f0ea;
+  --line: #e7e2d9;
+  --line-soft: #f0ece4;
+  --text: #1f2320;
+  --text-2: #5b655f;
+  --text-3: #7a847e;
+  --green: #00704a;
+  --green-deep: #1e3932;
+  --green-light: #00a862;
+  --green-dim: rgba(0, 112, 74, 0.08);
+  --amber: #96690f;
+  --amber-dim: rgba(150, 105, 15, 0.09);
+  --red: #c0392b;
+  --shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
 
   background: var(--bg);
   color: var(--text);
   font-size: 28rpx;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
 }
 
 .container {
-  padding: 24rpx 32rpx 80rpx;
+  padding: 32rpx 36rpx 96rpx;
 }
 
 /* ── 文字 ── */
 .t-hero {
   font-size: 52rpx;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -1rpx;
   line-height: 1.25;
 }
@@ -78,49 +84,71 @@ page {
 .mb-8 { margin-bottom: 8rpx; }
 .mb-16 { margin-bottom: 16rpx; }
 
+/* ── 深绿块：星巴克那种「一片叶子落在纸上」 ── */
+.hero {
+  background: var(--green-deep);
+  border-radius: 28rpx;
+  padding: 40rpx 36rpx;
+  margin-bottom: 32rpx;
+}
+.hero-title {
+  color: #f2f7f4;
+  font-size: 40rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  line-height: 1.35;
+}
+.hero-sub {
+  color: #a8c0b4;
+  font-size: 24rpx;
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
 /* ── 卡片 ── */
 .card {
   background: var(--surface);
-  border: 1rpx solid var(--line);
-  border-radius: 20rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
 }
 .card-soft {
   background: var(--surface-2);
-  border: none;
+  box-shadow: none;
 }
 .card-primary {
-  border-color: rgba(74, 222, 128, 0.35);
-  background: linear-gradient(160deg, rgba(74, 222, 128, 0.09), rgba(20, 27, 35, 0.9) 55%);
+  box-shadow: 0 1rpx 2rpx rgba(0, 112, 74, 0.08), 0 10rpx 30rpx rgba(0, 112, 74, 0.08);
+  border-left: 6rpx solid var(--green);
 }
 .card-plan {
-  border-color: rgba(245, 185, 66, 0.35);
-  background: linear-gradient(160deg, rgba(245, 185, 66, 0.1), rgba(20, 27, 35, 0.92) 60%);
+  box-shadow: 0 1rpx 2rpx rgba(150, 105, 15, 0.08), 0 10rpx 28rpx rgba(150, 105, 15, 0.06);
+  border-left: 6rpx solid var(--amber);
 }
 
 .divider {
   height: 1rpx;
   background: var(--line);
-  margin: 20rpx 0;
+  margin: 24rpx 0;
 }
 
 /* ── 标签 ── */
 .chip {
   display: inline-flex;
   align-items: center;
-  padding: 10rpx 22rpx;
+  padding: 12rpx 24rpx;
   border-radius: 999rpx;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1rpx solid var(--line);
   font-size: 24rpx;
   color: var(--text-2);
   margin: 0 12rpx 12rpx 0;
 }
 .chip-on {
-  background: var(--green-dim);
-  border-color: rgba(74, 222, 128, 0.5);
-  color: var(--green);
+  background: var(--green);
+  border-color: var(--green);
+  color: #ffffff;
+  font-weight: 500;
 }
 .tag {
   display: inline-block;
@@ -139,17 +167,17 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
-  border-radius: 16rpx;
+  height: 92rpx;
+  border-radius: 46rpx;
   font-size: 30rpx;
   font-weight: 500;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   border: 1rpx solid var(--line);
 }
 .btn-primary {
   background: var(--green);
-  color: #07120c;
+  color: #ffffff;
   border: none;
   font-weight: 600;
 }
@@ -161,7 +189,8 @@ page {
 .btn-sm {
   height: 64rpx;
   font-size: 26rpx;
-  padding: 0 24rpx;
+  padding: 0 28rpx;
+  border-radius: 32rpx;
   display: inline-flex;
   width: auto;
 }
@@ -171,16 +200,16 @@ page {
 .bar {
   height: 10rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--line-soft);
   overflow: hidden;
 }
 .bar-fill {
   height: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #2fb96a, #4ade80);
+  background: linear-gradient(90deg, #00603f, #00a862);
 }
 .bar-amber {
-  background: linear-gradient(90deg, #d99a28, #f5b942);
+  background: linear-gradient(90deg, #7d5407, #c9922a);
 }
 
 /* ── 头像 ── */
@@ -188,13 +217,13 @@ page {
   width: 92rpx;
   height: 92rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1f7a4d, #4ade80);
+  background: var(--green-deep);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
-  font-weight: 700;
-  color: #04150c;
+  font-weight: 600;
+  color: #e9f2ec;
   flex-shrink: 0;
 }
 
@@ -209,17 +238,20 @@ page {
 .dot-idle { background: var(--text-3); }
 .dot-warn { background: var(--amber); }
 
-/* ── 区块标题 ── */
+/* ── 区块标题：左侧绿竖条，星巴克货架式的分区 ── */
 .section {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 36rpx 0 18rpx;
+  margin: 44rpx 0 20rpx;
 }
 .section-title {
   font-size: 30rpx;
   font-weight: 600;
   color: var(--text);
+  border-left: 7rpx solid var(--green);
+  padding-left: 18rpx;
+  line-height: 1.25;
 }
 .section-more {
   font-size: 24rpx;
@@ -228,10 +260,10 @@ page {
 
 /* ── 输入 ── */
 .input {
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1rpx solid var(--line);
-  border-radius: 16rpx;
-  padding: 24rpx;
+  border-radius: 20rpx;
+  padding: 26rpx;
   color: var(--text);
   font-size: 28rpx;
   min-height: 120rpx;
