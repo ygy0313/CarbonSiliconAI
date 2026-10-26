@@ -52,7 +52,7 @@
   "sitemapLocation": "sitemap.json",
   "permission": {
     "scope.userLocation": {
-      "desc": "用于按你所在城市推荐吃饭与运动，位置只用于当次推荐，不写入档案"
+      "desc": "按你所在城市推荐吃饭与运动"
     }
   },
   "requiredPrivateInfos": [

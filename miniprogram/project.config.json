@@ -39,7 +39,9 @@
   "condition": {},
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "scripts" }
+    ],
     "include": []
   },
   "isGameTourist": false,
