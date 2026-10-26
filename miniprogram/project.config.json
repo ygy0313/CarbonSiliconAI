@@ -2,7 +2,7 @@
   "description": "起居注 · 一个人的档案",
   "miniprogramRoot": "./",
   "compileType": "miniprogram",
-  "appid": "wxd00dcb7ca3270b2e",
+  "appid": "touristappid",
   "projectname": "silicon-memory",
   "libVersion": "3.5.5",
   "setting": {
@@ -24,7 +24,24 @@
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
-    }
+    },
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false
   },
-  "condition": {}
+  "condition": {},
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "isGameTourist": false,
+  "editorSetting": {}
 }
