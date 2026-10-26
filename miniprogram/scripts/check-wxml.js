@@ -79,6 +79,17 @@ for (const file of walk(ROOT)) {
       errors.push(`${rel} <${tag}> 标签不配对：开 ${open} / 闭 ${close}`)
     }
   }
+
+  // ⑤ 同目录 wxss 的选择器里不许出现中文（WXSS 编译器不认，报 unexpected char）
+  const wxss = file.replace(/\.wxml$/, '.wxss')
+  if (fs.existsSync(wxss)) {
+    const wsrc = fs.readFileSync(wxss, 'utf8')
+    const selRe = /\.[\w-]*[\u4e00-\u9fff]+[\w-]*/g
+    let sm
+    while ((sm = selRe.exec(wsrc))) {
+      errors.push(`${path.relative(ROOT, wxss)} 类名含中文「${sm[0]}」——WXSS 编译器不支持，改英文类名并在 JS 预计算映射`)
+    }
+  }
 }
 
 if (warnings.length) {

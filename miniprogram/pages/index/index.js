@@ -9,6 +9,8 @@ const DIM_ORDER = [
 ]
 
 // 五行只谈节奏方向，不谈吉凶 —— 与 fortune.agent 是同一条红线
+// WXSS 不支持中文类名，五行用英文类名上色（el → cls 预计算映射）
+const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
 const ELEMENT_NOTE = {
   木: '生发的一行，适合把搁置的事往前推一步',
   火: '外放的一行，适合见人、表达、把话说开',
@@ -241,6 +243,7 @@ Page({
         const share = r ? r.share : 0
         return {
           el,
+          cls: ELEMENT_CLS[el] || 'mu',
           share,
           pct: Math.round(share * 100) + '',
           w: Math.max(4, Math.round(share * 100)),

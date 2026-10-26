@@ -96,11 +96,11 @@
   background: var(--green);
   transition: width 0.3s ease;
 }
-.gz-bar-fill.gz-el-木 { background: #4E8C6A; }
-.gz-bar-fill.gz-el-火 { background: #B4553F; }
-.gz-bar-fill.gz-el-土 { background: #A9873F; }
-.gz-bar-fill.gz-el-金 { background: #8A8F92; }
-.gz-bar-fill.gz-el-水 { background: #3E6F8C; }
+.gz-bar-fill.gz-el-mu { background: #4E8C6A; }
+.gz-bar-fill.gz-el-huo { background: #B4553F; }
+.gz-bar-fill.gz-el-tu { background: #A9873F; }
+.gz-bar-fill.gz-el-jin { background: #8A8F92; }
+.gz-bar-fill.gz-el-shui { background: #3E6F8C; }
 .gz-bar-pct {
   width: 68rpx;
   text-align: right;

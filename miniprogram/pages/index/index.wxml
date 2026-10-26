@@ -47,7 +47,7 @@
       <view wx:for="{{elementBars}}" wx:key="el" class="gz-bar-row">
         <text class="gz-bar-el">{{item.el}}</text>
         <view class="gz-bar-track">
-          <view class="gz-bar-fill gz-el-{{item.el}}" style="width:{{item.w}}%"></view>
+          <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
         </view>
         <text class="gz-bar-pct">{{item.pct}}%</text>
       </view>
