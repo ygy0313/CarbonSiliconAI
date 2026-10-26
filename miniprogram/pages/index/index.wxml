@@ -147,25 +147,6 @@
     <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
   </view>
 
-  <block wx:if="{{mode === 'old'}}">
-    <view class="section">
-      <text class="section-title">最近的记忆</text>
-      <text class="section-more" bindtap="goProfile">全部</text>
-    </view>
-    <view class="card" wx:if="{{recent.length}}">
-      <view wx:for="{{recent}}" wx:key="id" class="memory">
-        <view class="row between">
-          <text class="t-body grow">{{item.summary}}</text>
-          <text class="t-mini">{{item.when}}</text>
-        </view>
-        <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
-          <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
-        </view>
-      </view>
-    </view>
-    <view class="empty" wx:else>还没有记录。执笔对你还一无所知。</view>
-  </block>
-
   <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
 
 </view>

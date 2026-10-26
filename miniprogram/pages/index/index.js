@@ -170,13 +170,6 @@ Page({
     })
     const filled = dims.filter(d => d.on).length
 
-    const recent = (silicon.episodes || []).slice(0, 3).map(e => ({
-      id: e.id,
-      summary: e.summary || (e.text || '').slice(0, 22),
-      when: relTime(e.ts),
-      tags: (e.tags || []).slice(0, 2),
-    }))
-
     const identityFact = factMap['self.identity']
     // 隐私：首页默认只显示昵称。档案里的真名不上首页，避免随手一瞥就泄露。
     const nickname = wx.getStorageSync('nickname') || ''
@@ -202,7 +195,6 @@ Page({
       completenessPct: Math.round(completeness * 100) + '',
       dims,
       filled,
-      recent,
       serviceCount,
       mode: this.resolveMode(completeness),
     })
@@ -320,7 +312,8 @@ Page({
     this.setData({
       recFood: pick(eat, 'meal_'),
       recMove: pick(move, 'move_'),
-      recCity: (geo && geo.city) || this.data.city || '',
+      // 定位成功显示定位解析的城市；失败才回退档案城市
+      recCity: (eat && eat.geoCity) || (geo ? '当前位置' : this.data.city || ''),
       recNote: geo ? '按当前位置推荐' : '按档案里的城市推荐 · 允许定位会更准',
     })
   },

@@ -353,7 +353,72 @@ const routes = [
         entities: extracted.entities,
         geo: g,
       })
+      // 前端展示用：定位解析出的城市（人在哪就显示哪，不再显示档案城市）
+      result.geoCity = g ? g.city : null
       return result
+    },
+  },
+  // ── 微信运动：code2Session + 解密加密数据（AppSecret 只在服务端）──
+  {
+    method: 'POST',
+    pattern: /^\/api\/wechat\/werun$/,
+    handler: async ({ body }) => {
+      const code = requireString(body.code, 'code', 64)
+      const encryptedData = requireString(body.encryptedData, 'encryptedData', 6144)
+      const iv = requireString(body.iv, 'iv', 32)
+      if (!config.wx || !config.wx.appid || !config.wx.secret) {
+        return { engine: 'disabled', reason: '服务端还没配置微信凭据' }
+      }
+      const qs = new URLSearchParams({
+        appid: config.wx.appid,
+        secret: config.wx.secret,
+        js_code: code,
+        grant_type: 'authorization_code',
+      })
+      let session = null
+      try {
+        const res = await fetch(`https://api.weixin.qq.com/sns/jscode2session?${qs}`)
+        session = await res.json()
+      } catch (_) {
+        return { engine: 'none', reason: '连不上微信服务器' }
+      }
+      if (!session || !session.session_key) {
+        return { engine: 'none', reason: (session && session.errmsg) || 'code2Session 失败' }
+      }
+      let parsed = null
+      try {
+        const key = Buffer.from(session.session_key, 'base64')
+        const data = Buffer.from(encryptedData, 'base64')
+        const ivBuf = Buffer.from(iv, 'base64')
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, ivBuf)
+        const plain = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8')
+        parsed = JSON.parse(plain)
+      } catch (_) {
+        return { engine: 'none', reason: '解密失败（数据或会话不匹配）' }
+      }
+      if (!parsed || !parsed.watermark || parsed.watermark.appid !== config.wx.appid) {
+        return { engine: 'none', reason: '数据水印校验不通过' }
+      }
+      const list = Array.isArray(parsed.stepInfoList) ? parsed.stepInfoList : []
+      const days = list.slice(-7).map(x => {
+        const d = new Date(x.timestamp * 1000)
+        const pad = n => (n < 10 ? '0' + n : '' + n)
+        return {
+          date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+          step: x.step,
+        }
+      })
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const bjToday = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10)
+      const today = days.find(x => x.date === bjToday) || days[days.length - 1] || null
+      return {
+        engine: 'model',
+        today,
+        week: days,
+        // 参考量级：快走 30 分钟约 3000-4000 步，折算系数按公开指南取 0.04 kcal/步
+        kcalEstimate: today ? Math.round(today.step * 0.04) : null,
+        fastWalkMin: today ? Math.round((today.step / 3500) * 30) : null,
+      }
     },
   },
   {

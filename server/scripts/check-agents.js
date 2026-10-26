@@ -181,6 +181,17 @@ async function main() {
   const gzAfter = await call(`/api/persons/${P}/ganzhi`)
   ok('今日干支回退用生日日主', gzAfter.status === 200 && !!gzAfter.data?.me?.element)
 
+  const geoRes = await call(`/api/persons/${P}/orchestrate`, {
+    method: 'POST',
+    body: { text: '中午吃什么', geo: { lat: 30.27, lon: 120.15 }, remember: false },
+  })
+  ok('编排返回 geoCity（定位城市直接可显示）', geoRes.data?.geoCity === '杭州', `geoCity=${geoRes.data?.geoCity}`)
+
+  const wr = await call('/api/wechat/werun', { method: 'POST', body: { code: 'x', encryptedData: 'y', iv: 'z' } })
+  ok('微信运动接口未配凭据时明确降级', wr.status === 200 && (wr.data?.engine === 'disabled' || wr.data?.engine === 'model'), JSON.stringify(wr.data || {}).slice(0, 80))
+  const wrBad = await call('/api/wechat/werun', { method: 'POST', body: { code: 'x' } })
+  ok('微信运动接口缺参数被拒', wrBad.status === 400)
+
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {
     console.log('失败项：')

@@ -106,6 +106,9 @@ module.exports = {
     request(`/api/persons/${personId}/bazi`, { method: 'POST', data: payload }),
   getBazi: personId => request(`/api/persons/${personId}/bazi`),
 
+  // ── 微信运动：code + 加密数据 → 服务端解密（AppSecret 只在服务端）──
+  weRun: payload => request('/api/wechat/werun', { method: 'POST', data: payload }),
+
   // ── Obsidian 笔记检索（读笔记需 scope=vault 票据）──
   vaultSearch: (personId, q, token) =>
     request(`/api/persons/${personId}/vault/search?q=${encodeURIComponent(q)}`, { token }),

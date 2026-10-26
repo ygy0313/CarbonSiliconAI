@@ -65,6 +65,12 @@ const config = {
     vaultPath: process.env.OBSIDIAN_VAULT_PATH || '',
   },
 
+  // 微信凭据：code2Session / 微信运动解密用。secret 只进服务端 env，不进仓库。
+  wx: {
+    appid: process.env.WX_APPID || '',
+    secret: process.env.WX_APPSECRET || '',
+  },
+
   // CORS：显式来源，禁止通配符。小程序不受 CORS 限制，这里只服务本地预览页。
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')

@@ -1,15 +1,8 @@
-// 我的：个人属性聚合页 —— 昵称、个人八字、它现在这样理解你、票据授权、法律文本。
-// 红线：明文票据只在本页展示一次，不写本地存储；命盘只描述构成，不作吉凶断言。
+// 我的：个人属性聚合页 —— 昵称、个人八字、健康（微信运动+手动）、理解你、最近记忆、我的 Prompt、授权与法律。
+// 红线：明文票据只在内存里用一次，不写本地存储；命盘/健康只描述状态，不作吉凶与医学断言。
 
 const app = getApp()
 const api = require('../../utils/api')
-
-const SCOPE_DEFS = [
-  { key: 'prompt', label: '读取人格 prompt', desc: '把档案编成驱动 agent 的提示词' },
-  { key: 'export', label: '导出档案', desc: '生成可离线保存的标准文件' },
-  { key: 'raw', label: '还原原文', desc: '解密被脱敏前的原始记录' },
-  { key: 'pii', label: '读取身份信息', desc: '还原手机号/证件号等' },
-]
 
 // 十二时辰选择器：value 为该时辰的起时（0-23），「不知道」不录时辰
 const HOUR_OPTIONS = [
@@ -28,6 +21,8 @@ const HOUR_OPTIONS = [
   { label: '亥时 21-23', hour: 22 },
 ]
 
+const HEALTH_TYPES = ['用药', '睡眠', '体重', '其他']
+
 // WXSS 不支持中文类名，五行条用英文类名（与首页同一套映射）
 const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
 
@@ -45,13 +40,18 @@ Page({
     saving: false,
     chart: null,
     chartBars: [],
-    // ── 理解你 ──
+    // ── 健康 ──
+    weun: null,
+    weunBusy: false,
+    weunRecorded: false,
+    healthTypes: HEALTH_TYPES,
+    healthTypeIdx: 0,
+    healthText: '',
+    healthSaving: false,
+    // ── 理解你 / 最近记忆 ──
     hints: [],
-    // ── 票据 ──
-    scopes: SCOPE_DEFS.map(s => ({ ...s, on: false, cls: 'chip' })),
-    purpose: '',
-    issuing: false,
-    issuedToken: '',
+    recent: [],
+    // ── 我的 Prompt / 授权 ──
     grants: [],
     audits: [],
     promptText: '',
@@ -72,21 +72,39 @@ Page({
     Promise.all([this.reload(), this.loadMine()]).finally(() => wx.stopPullDownRefresh())
   },
 
-  // ── 个人属性：昵称 / 完整度 / 理解你 ──
+  // ── 个人属性：昵称 / 完整度 / 理解你 / 最近记忆 / 八字回填 ──
   async loadMine() {
     const nickname = wx.getStorageSync('nickname') || ''
     this.setData({ nickname, hasNickname: !!nickname })
     try {
       const silicon = await app.loadSilicon(false)
+      const recent = (silicon.episodes || []).slice(0, 5).map(e => ({
+        id: e.id,
+        summary: e.summary || (e.text || '').slice(0, 26),
+        when: this.relTime(e.ts),
+        tags: (e.tags || []).slice(0, 2),
+      }))
       this.setData({
         completenessPct: Math.round((silicon.completeness || 0) * 100) + '',
         hints: (silicon.traits && silicon.traits.personaHints) || [],
+        recent,
       })
     } catch (_) {}
     try {
       const b = await api.getBazi(app.globalData.personId)
       if (b && b.configured) this.applyChart(b)
     } catch (_) {}
+  },
+
+  relTime(ts) {
+    if (!ts) return ''
+    const diff = Date.now() - new Date(ts).getTime()
+    const min = Math.round(diff / 60000)
+    if (min < 1) return '刚刚'
+    if (min < 60) return `${min} 分钟前`
+    const h = Math.round(min / 60)
+    if (h < 24) return `${h} 小时前`
+    return `${Math.round(h / 24)} 天前`
   },
 
   setNickname() {
@@ -151,8 +169,8 @@ Page({
     this.setData({
       chart: r,
       birthDate: b.y ? `${b.y}-${pad(b.m)}-${pad(b.d)}` : this.data.birthDate,
-      hourIdx: Math.max(0, HOUR_OPTIONS.findIndex(o => o.hour === (r.birth && r.birth.hour))),
-      birthPlace: (r.birth && r.birth.place) || '',
+      hourIdx: Math.max(0, HOUR_OPTIONS.findIndex(o => o.hour === (b.hour === undefined ? null : b.hour))),
+      birthPlace: b.place || '',
       chartBars: bars.map(x => ({
         el: x.element,
         cls: ELEMENT_CLS[x.element] || 'mu',
@@ -162,11 +180,113 @@ Page({
     })
   },
 
+  // ── 健康：微信运动 ──
+  readWeRun() {
+    this.setData({ weunBusy: true })
+    const login = () => new Promise((resolve, reject) => wx.login({ success: r => resolve(r.code), fail: reject }))
+    const getRun = () => new Promise((resolve, reject) => wx.getWeRunData({ success: resolve, fail: reject }))
+    Promise.all([login(), getRun()])
+      .then(([code, run]) => api.weRun({ code, encryptedData: run.encryptedData, iv: run.iv }))
+      .then(r => {
+        if (!r || r.engine !== 'model') {
+          wx.showToast({ title: (r && r.reason) || '拿不到步数', icon: 'none' })
+          return
+        }
+        const week = (r.week || []).map(x => ({ ...x, label: x.date.slice(5) }))
+        const maxStep = Math.max(1, ...week.map(x => x.step))
+        week.forEach(x => { x.pct = Math.max(8, Math.round((x.step / maxStep) * 100)) })
+        this.setData({ weun: { ...r, week } })
+      })
+      .catch(e => {
+        const msg = (e && e.errMsg && /auth|denied/i.test(e.errMsg)) ? '需要授权微信运动' : ((e && e.message) || '读取失败')
+        wx.showToast({ title: msg, icon: 'none' })
+      })
+      .finally(() => this.setData({ weunBusy: false }))
+  },
+
+  // 步数落档案：走同一条 records 流水线（脱敏 + 入库），记的是量级不是原文
+  saveSteps() {
+    const w = this.data.weun
+    if (!w || !w.today) return
+    this.setData({ busy: true })
+    api
+      .record(app.globalData.personId, `今天微信运动 ${w.today.step} 步，约 ${w.kcalEstimate} 千卡，相当于快走 ${w.fastWalkMin} 分钟`, ['健康', '运动'])
+      .then(() => {
+        this.setData({ weunRecorded: true })
+        wx.showToast({ title: '已记入档案', icon: 'success' })
+      })
+      .catch(e => wx.showToast({ title: e.message || '记录失败', icon: 'none' }))
+      .finally(() => this.setData({ busy: false }))
+  },
+
+  // ── 健康：手动记（用药 / 睡眠 / 体重 / 其他）──
+  pickHealthType(e) {
+    this.setData({ healthTypeIdx: Number(e.currentTarget.dataset.idx) })
+  },
+
+  onHealthText(e) {
+    this.setData({ healthText: e.detail.value })
+  },
+
+  saveHealth() {
+    const text = (this.data.healthText || '').trim()
+    if (!text) {
+      wx.showToast({ title: '先写点内容', icon: 'none' })
+      return
+    }
+    const type = this.data.healthTypes[this.data.healthTypeIdx]
+    this.setData({ healthSaving: true })
+    api
+      .record(app.globalData.personId, `${type}：${text}`, ['健康', type])
+      .then(() => {
+        this.setData({ healthText: '' })
+        wx.showToast({ title: '已记入档案', icon: 'success' })
+        this.loadMine()
+      })
+      .catch(e => wx.showToast({ title: e.message || '记录失败', icon: 'none' }))
+      .finally(() => this.setData({ healthSaving: false }))
+  },
+
+  // ── 我的 Prompt：自动签票 + 读取 ──
+  async signTicket(scopes, purpose) {
+    const r = await api.issueGrant(app.globalData.personId, { scopes, purpose, ttlSec: 900, maxUses: 3 })
+    const held = { ...(app.globalData.tokens || {}) }
+    scopes.forEach(k => { held[k] = r.token })
+    app.globalData.tokens = held
+    this.setData({ issuedToken: r.token })
+    await this.reload()
+    return r.token
+  },
+
+  async viewMyPrompt() {
+    this.setData({ busy: true })
+    try {
+      if (!this.tokenFor('prompt')) await this.signTicket(['prompt'], '查看我的 Prompt')
+      await this.readPrompt()
+    } catch (e) {
+      wx.showToast({ title: e.message || '签授权失败', icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  async exportMine() {
+    this.setData({ busy: true })
+    try {
+      if (!this.tokenFor('export')) await this.signTicket(['export'], '导出我的档案')
+      await this.doExport({ currentTarget: { dataset: { depth: 'safe' } } })
+    } catch (e) {
+      wx.showToast({ title: e.message || '导出失败', icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
   goLegal(e) {
     wx.navigateTo({ url: '/pages/legal/legal?doc=' + (e.currentTarget.dataset.doc || 'privacy') })
   },
 
-  // ── 票据（原「契」的全部能力）──
+  // ── 授权与审计 ──
   async reload() {
     try {
       const r = await api.getGrants(app.globalData.personId)
@@ -195,54 +315,6 @@ Page({
     return `${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
   },
 
-  toggleScope(e) {
-    const key = e.currentTarget.dataset.key
-    const scopes = this.data.scopes.map(s => {
-      if (s.key !== key) return s
-      const on = !s.on
-      return { ...s, on, cls: on ? 'chip chip-on' : 'chip' }
-    })
-    this.setData({ scopes })
-  },
-
-  onPurpose(e) {
-    this.setData({ purpose: e.detail.value })
-  },
-
-  async issue() {
-    const picked = this.data.scopes.filter(s => s.on).map(s => s.key)
-    if (!picked.length) {
-      wx.showToast({ title: '至少选一项权限', icon: 'none' })
-      return
-    }
-    this.setData({ issuing: true })
-    try {
-      const r = await api.issueGrant(app.globalData.personId, {
-        scopes: picked,
-        purpose: this.data.purpose || '未说明用途',
-        ttlSec: 900,
-        maxUses: 3,
-      })
-      // 明文票据只此一次；按 scope 存在内存里，退出页面即失效
-      const held = { ...(app.globalData.tokens || {}) }
-      picked.forEach(k => { held[k] = r.token })
-      app.globalData.tokens = held
-
-      this.setData({ issuedToken: r.token })
-      wx.showToast({ title: '票据已签发', icon: 'success' })
-      await this.reload()
-    } catch (e) {
-      wx.showToast({ title: e.message || '签发失败', icon: 'none' })
-    } finally {
-      this.setData({ issuing: false })
-    }
-  },
-
-  copyToken() {
-    if (!this.data.issuedToken) return
-    wx.setClipboardData({ data: this.data.issuedToken })
-  },
-
   async revoke(e) {
     try {
       await api.revokeGrant(app.globalData.personId, e.currentTarget.dataset.id)
@@ -262,17 +334,14 @@ Page({
   async readPrompt() {
     const token = this.tokenFor('prompt')
     if (!token) {
-      wx.showToast({ title: '先签一张含「读 prompt」的票', icon: 'none' })
+      wx.showToast({ title: '先签一张授权', icon: 'none' })
       return
     }
-    this.setData({ busy: true })
     try {
       const r = await api.getPrompt(app.globalData.personId, token)
       this.setData({ promptText: r.prompt, exportInfo: '' })
     } catch (e) {
       wx.showToast({ title: e.message || '读取失败', icon: 'none' })
-    } finally {
-      this.setData({ busy: false })
     }
   },
 
@@ -284,10 +353,9 @@ Page({
     const depth = e.currentTarget.dataset.depth
     const token = this.tokenFor('export')
     if (!token) {
-      wx.showToast({ title: '先签一张含「导出」的票', icon: 'none' })
+      wx.showToast({ title: '先签一张授权', icon: 'none' })
       return
     }
-    this.setData({ busy: true })
     try {
       const scopes = depth === 'sealed' ? ['export', 'raw'] : ['export']
       const archive = await api.exportArchive(app.globalData.personId, token, scopes)
@@ -303,8 +371,6 @@ Page({
       })
     } catch (err) {
       wx.showToast({ title: err.message || '导出失败', icon: 'none' })
-    } finally {
-      this.setData({ busy: false })
     }
   },
 })
