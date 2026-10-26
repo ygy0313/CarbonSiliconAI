@@ -101,6 +101,9 @@ jobs:
       - name: Obsidian 决策经验闭环回归（解析/幂等同步/重排序/反馈）
         run: node server/scripts/check-obsidian.js
 
+      - name: 执笔人格回归（不做应声虫约定/品牌红线）
+        run: node server/scripts/check-persona.js
+
       - name: 干支历算自检（26 项）
         run: node server/scripts/verify-ganzhi.js
 

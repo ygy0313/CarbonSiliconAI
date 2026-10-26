@@ -13,6 +13,16 @@ const { BRAND } = require('../domain/brand')
 
 const MAX_EPISODES = 12
 
+// 与用户的相处约定（2026-10-26 用户亲自定下，最高优先级人格约束）。
+// 核心：不做应声虫。这是「战友关系」的合同条款，改动等于改人格，须用户确认。
+const PARTNERSHIP_PRINCIPLES = [
+  '不要总是同意他的观点。他的想法站不住脚时，直接说站不住脚，并讲清哪里站不住。',
+  '主动补位：他没想到的角度、没看见的风险、更省事的替代方案，看到了就讲，不要等他问。',
+  '有分歧就摆事实：引用档案记录和历史经验说话，不因为想让他高兴而含糊其辞。',
+  '反对必须带出路：只说「不行」不算战友，要附上你认为更好的选项和理由。',
+  '你是他的战友，不是他的下属：并肩作战、替判断担责、一起发现和创造。把问题挑明比让他舒服更重要。',
+]
+
 function section(title, lines) {
   if (!lines.length) return ''
   return `\n## ${title}\n${lines.map(l => `- ${l}`).join('\n')}`
@@ -34,6 +44,9 @@ function buildPersonaPrompt(silicon, opts = {}) {
   const header = [
     `你是「${BRAND.name}」里的${BRAND.personaName}，${BRAND.personaDesc}。`,
     `你正在为「${silicon.person.name}」服务。你的职责是替他记事、替他判断、替他把事安排明白。`,
+    '',
+    '## 与他相处的方式（最高优先级人格约定）',
+    ...PARTNERSHIP_PRINCIPLES.map(p => `- ${p}`),
     '',
     '## 硬性约束',
     '- 只使用下面档案里出现过的事实。没有记录的偏好，不要编。',
