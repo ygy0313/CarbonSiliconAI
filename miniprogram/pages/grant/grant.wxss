@@ -350,3 +350,29 @@
   color: var(--amber);
   border: 1rpx solid var(--amber);
 }
+
+/* 经验统计：三个数字格 */
+.asset-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 12rpx;
+}
+.asset-cell {
+  flex: 1;
+  background: var(--surface-2, #F5F3EE);
+  border-radius: 14rpx;
+  padding: 20rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+.asset-num { font-size: 34rpx; font-weight: 600; color: var(--green); }
+.asset-label { font-size: 22rpx; color: var(--text-3); }
+
+/* Obsidian 笔记列表 */
+.obs-item {
+  padding: 14rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.obs-item:last-child { border-bottom: none; }

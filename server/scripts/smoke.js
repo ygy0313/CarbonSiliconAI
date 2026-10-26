@@ -36,10 +36,10 @@ function assert(cond, name, detail) {
   else bad(name, detail)
 }
 
-async function call(path, method = 'GET', body) {
+async function call(path, method = 'GET', body, headers = {}) {
   const res = await fetch(BASE + path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined,
   })
   const json = await res.json()
@@ -194,6 +194,27 @@ async function main() {
   await call('/api/persons', 'POST', { id: P2, name: '另一个人' })
   const agCross = await call(`/api/persons/${P2}/agenda/${agTomorrow.body.data.item.id}/done`, 'POST', { done: false })
   assert(agCross.status === 404, '跨人改日程一律 404', String(agCross.status))
+
+  // ── 按日翻记录 / 时段推荐 / Obsidian 查看 ──
+  const dayRec = await call(`/api/persons/${PERSON}/records`)
+  assert(dayRec.status === 200 && dayRec.body.data.count >= 1, '按日翻记录：今天有账', String(dayRec.body.data.count))
+  const emptyDay = await call(`/api/persons/${PERSON}/records?date=2000-01-01`)
+  assert(emptyDay.body.data.count === 0, '按日翻记录：空日子是 0 笔')
+  const badDay = await call(`/api/persons/${PERSON}/records?date=2026-02-31`)
+  assert(badDay.status === 400, '不存在的日期被拒绝', badDay.body.error.code)
+
+  const slotRes = await call(`/api/persons/${PERSON}/orchestrate`, 'POST', { text: '来点吃的', slot: 'tea', remember: false })
+  const brewCards = (slotRes.body.data.cards || []).filter(c => String(c.id || '').startsWith('brew_'))
+  assert(brewCards.length >= 1, '时段透传：茶歇出饮品候选（茶/咖啡，不含酒）', brewCards.map(c => c.title).join('、'))
+  const mealDesc = (slotRes.body.data.cards || []).map(c => c.desc || '').join(' ')
+  assert(!/[0-9]+ ?元/.test(mealDesc), '食饮文案不带价格')
+
+  const vaultNoToken = await call(`/api/persons/${PERSON}/obsidian/notes`)
+  assert(vaultNoToken.status === 401, 'Obsidian 列表无票据被拦', String(vaultNoToken.status))
+  const grantRes = await call(`/api/persons/${PERSON}/grants`, 'POST', { scopes: ['vault'], purpose: '冒烟：读 Obsidian', ttlSec: 300, maxUses: 3 })
+  assert(grantRes.status === 200 && grantRes.body.data.token, '签 vault 票据')
+  const vaultList = await call(`/api/persons/${PERSON}/obsidian/notes`, 'GET', null, { 'X-Grant-Token': grantRes.body.data.token })
+  assert(vaultList.status === 400, '库路径没配时给明确报错（票据已通过）', vaultList.body.error.code)
 
   // ── 清理 ──
   await call('/api/dev/reset', 'POST', {})

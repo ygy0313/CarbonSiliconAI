@@ -25,6 +25,11 @@ function ok(name, cond, detail = '') {
 function readJSON(p) {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')) } catch (_) { return null } }
 
+// 首页 JS 源码（重复读取嫌烦，封一个小函数）
+function idxSrcLater(needle) {
+  return fs.readFileSync(path.join(MP, 'pages/index/index.js'), 'utf8').includes(needle)
+}
+
 // ── Page 桩：把页面文件在 Node 里跑起来，不改它的代码 ──
 function loadPage(relPath, { personId = 'p_test' } = {}) {
   const full = path.join(MP, relPath)
@@ -82,7 +87,7 @@ function main() {
 
   ok('经验页已下线（数据收进「我的」）', !pages.includes('pages/assets/assets'))
   ok('档案页目录已删除', !fs.existsSync(path.join(MP, 'pages/assets')))
-  ok('日程页保留为二级页（不再占 tab）', pages.includes('pages/agenda/agenda'))
+  ok('日程页已删除（日程只在首页展示）', !pages.includes('pages/agenda/agenda') && !fs.existsSync(path.join(MP, 'pages/agenda')))
   ok('条款页已注册', pages.includes('pages/legal/legal'))
 
   console.log('\n【2】tabBar：三大入口')
@@ -118,9 +123,8 @@ function main() {
     const wxml = fs.readFileSync(path.join(MP, 'pages/grant/grant.wxml'), 'utf8')
     return wxml.includes('hint-fill') && wxml.includes('hint-bar') && wxml.includes('item.pct')
   })())
-  ok('健康段不再有手工录入（统一去记录页）', typeof mineAssets.saveHealth === 'undefined' && typeof mineAssets.pickHealthType === 'undefined')
-  ok('健康段保留微信运动读取与落档案', typeof mineAssets.readWeRun === 'function' && typeof mineAssets.saveSteps === 'function')
-  ok('健康段给「去记录页」入口', typeof mineAssets.goRecordHealth === 'function')
+  ok('健康段不再有手工录入', typeof mineAssets.saveHealth === 'undefined' && typeof mineAssets.pickHealthType === 'undefined' && typeof mineAssets.saveSteps === 'undefined' && typeof mineAssets.goRecordHealth === 'undefined')
+  ok('健康段保留微信运动读取与自动落档', typeof mineAssets.readWeRun === 'function' && typeof mineAssets.autoRecordSteps === 'function')
   ok('八字改动自动生成（无重新生成按钮）', typeof mineAssets.autoBazi === 'function' && typeof mineAssets.saveBazi === 'function')
   ok('三段已改为 档案·健康·数据',
     mineAssets.data.segs.map(s => s.label).join(',') === '档案,健康,数据',
@@ -188,7 +192,7 @@ function main() {
   ok('我的页有昵称设置', typeof mine.setNickname === 'function')
   ok('时辰选择器含「不知道」+ 十二时辰', (mine.data.hourOptions || []).length === 13)
   ok('一键看 Prompt（自动签票）', typeof mine.viewMyPrompt === 'function' && typeof mine.signTicket === 'function')
-  ok('健康卡：微信运动读取 + 脱敏落档案', typeof mine.readWeRun === 'function' && typeof mine.saveSteps === 'function')
+  ok('健康卡：微信运动读取 + 自动落档', typeof mine.readWeRun === 'function' && typeof mine.autoRecordSteps === 'function' && typeof mine.saveSteps === 'undefined')
   ok('手工健康录入已移到记录页（我的页不再有）', typeof mine.saveHealth === 'undefined')
   ok('最近记忆已迁入我的页', typeof mine.relTime === 'function' && Array.isArray(mine.data.recent))
   ok('授权记录改名（不再是票据术语）', typeof mine.revoke === 'function' && typeof mine.exportMine === 'function')
@@ -219,28 +223,41 @@ function main() {
   ok('我的页含 12 维兜底维度', /FALLBACK_DIMS/.test(fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')))
   ok('我的页无跨页跳档案的残留', !fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8').includes('pages/profile'))
 
-  console.log('\n【11】首页四模块：运 / 味 / 动 / 梦 + 内联输入')
+  console.log('\n【10.5】生辰置顶 + 经验随后 + Obsidian 入口')
+  ok('八字已更名「生辰」', mineWxml.includes('section-title">生辰') && !mineWxml.includes('个人八字'))
+  ok('生辰排在档案段最前（在完整度卡之前）', mineWxml.indexOf('section-title">生辰') !== -1 && mineWxml.indexOf('section-title">生辰') < mineWxml.indexOf('它对你的把握'))
+  ok('经验卡紧跟生辰（在其后、完整度之前）', mineWxml.indexOf('section-title">经验') > mineWxml.indexOf('section-title">生辰') && mineWxml.indexOf('section-title">经验') < mineWxml.indexOf('它对你的把握'))
+  ok('数据段不再有旧经验资产卡', !mineWxml.includes('section-title">经验资产'))
+  ok('Obsidian 查看 / 展开导出三件套', typeof mine.openObsidian === 'function' && typeof mine.toggleNote === 'function' && typeof mine.exportObsidian === 'function')
+  ok('Obsidian 卡在 WXML 里', mineWxml.includes('openObsidian') && mineWxml.includes('exportObsidian'))
+  ok('健康维度进了兜底（目标 kcal / 运动喜好）', (() => {
+    const src = fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')
+    return src.includes('health.moveGoalKcal') && src.includes('health.moveLike')
+  })())
+
+  console.log('\n【11】首页五模块：运 / 味 / 动 / 梦 / 记')
   const idxWxml2 = fs.readFileSync(path.join(MP, 'pages/index/index.wxml'), 'utf8')
-  const mods = ['今日运程', '今日食饮', '动一动', '记个梦']
+  const mods = ['今日运程', '今日食饮', '动一动', '灵光一现', '你的记录']
   const missingMods = mods.filter(m => !idxWxml2.includes(m))
-  ok('四个模块标题都在', missingMods.length === 0, missingMods.join('、'))
-  const iconChars = ['运', '味', '动', '梦']
+  ok('五个模块标题都在', missingMods.length === 0, missingMods.join('、'))
+  const iconChars = ['运', '味', '动', '梦', '记']
   const missingIcons = iconChars.filter(c => !idxWxml2.includes(`class="mod-icon">${c}<`))
-  ok('四个模块各有一个印章图标（运/味/动/梦）', missingIcons.length === 0, missingIcons.join('、'))
+  ok('五个模块各有一个印章图标（运/味/动/梦/记）', missingIcons.length === 0, missingIcons.join('、'))
   ok('旧模块头已下线（历/程/饮 不再单独成格）', ['>历<', '>程<', '>饮<', '>食<'].every(c => !idxWxml2.includes(`class="mod-icon">${c.slice(1)}`)))
   ok('运程模块合并了五行与日程', idxWxml2.includes('gz-pillars') && idxWxml2.includes('agenda.headline'))
-  ok('食饮模块合并了吃什么与喝什么', idxWxml2.includes('meal.title') && idxWxml2.includes('wine.title'))
-  ok('内联记一笔三件套（拍 / 说 / 存）',
-    idxWxml2.includes('pickTastePhoto') && idxWxml2.includes('startTasteRecord') && idxWxml2.includes('saveTaste'))
-  ok('拍的照片在页面里回显', idxWxml2.includes('taste-photo'))
-  ok('运动模块显示今日实际消耗', idxWxml2.includes('werun.step') && idxWxml2.includes('werun.kcal'))
-  ok('日程是二级页（navigateTo 而非 switchTab）', (() => {
-    const src = fs.readFileSync(path.join(MP, 'pages/index/index.js'), 'utf8')
-    return src.includes("navigateTo({ url: '/pages/agenda/agenda' })") && !src.includes("switchTab({ url: '/pages/agenda/agenda' })")
-  })())
+  ok('食饮一卡揉了吃与饮（含时段与酒）', idxWxml2.includes('meal.title') && idxWxml2.includes('brew.title') && idxWxml2.includes('slotText'))
+  ok('食饮模块不出现费用', !idxWxml2.includes('priceNote') && !idxWxml2.includes('人均'))
+  ok('日程页入口已拔掉（无 goAgenda / agenda 页跳转）', !idxSrcLater('goAgenda'))
+  ok('日程可加进手机日历', idxWxml2.includes('addToCalendar'))
+  ok('动模块显示消耗与目标缺口（无 Keep 按钮）', idxWxml2.includes('werun.kcal') && idxWxml2.includes('moveGapText') && !idxWxml2.includes('Keep'))
+  ok('灵光一现两个动作：探索&创造 / 破个局', idxWxml2.includes('exploreCreate') && idxWxml2.includes('breakThrough') && idxWxml2.includes('探索&创造'))
+  ok('底部按日翻记录（默认今天）', idxWxml2.includes('onRecDate') && idxWxml2.includes('dayRecords') && idxWxml2.includes('mode="date"'))
+  ok('自动记录：步数拿到即落档（无「记入档案」按钮）', idxSrcLater('autoRecordSteps') && !idxWxml2.includes('recordSteps'))
+  ok('点昵称跳「我的」', idxWxml2.includes('bindtap="goMine"'))
   ok('共享输入能力在 utils/capture.js', fs.existsSync(path.join(MP, 'utils/capture.js')))
-  ok('首页按模块取数据', ['loadGanzhi', 'loadRec', 'loadWine', 'loadAgenda', 'submitDream', 'loadWeRun', 'recordSteps'].every(k => typeof idx[k] === 'function'))
-  ok('吃与动可以本地换一条', typeof idx.nextRec === 'function')
+  ok('首页按模块取数据', ['loadGanzhi', 'loadFood', 'loadRec', 'loadWine', 'loadAgenda', 'breakThrough', 'loadWeRun', 'loadDayRecords', 'autoRecordSteps'].every(k => typeof idx[k] === 'function'))
+  ok('吃与饮与动可以本地换一条', typeof idx.nextRec === 'function')
+  ok('旧的内联记一笔已删除（与记录页重复）', !idxSrcLater('saveTaste') && !idxSrcLater('pickTastePhoto'))
   ok('记录页有照片回显与丢弃', (() => {
     const wxml = fs.readFileSync(path.join(MP, 'pages/record/record.wxml'), 'utf8')
     return wxml.includes('photo-preview') && typeof record.clearPhoto === 'function'
@@ -249,13 +266,6 @@ function main() {
     const src = fs.readFileSync(path.join(MP, 'pages/record/record.js'), 'utf8')
     return ['用药', '睡眠', '体重', '运动'].every(t => src.includes(`'${t}'`))
   })())
-
-  const agenda = loadPage('pages/agenda/agenda.js')
-  ok('日程页有加载/新增/勾完/删除', ['load', 'save', 'toggle', 'remove'].every(k => typeof agenda[k] === 'function'))
-  agenda.buildChips()
-  ok('日程日期快捷项：今天/明天/后天', (agenda.data.dateChips || []).map(c => c.label).join(',') === '今天,明天,后天')
-  ok('日程默认落在今天', agenda.data.date === agenda.data.todayKey)
-  ok('日程列表初始为空（不假装有安排）', Array.isArray(agenda.data.groups) && agenda.data.groups.length === 0)
 
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {

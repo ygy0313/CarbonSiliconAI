@@ -34,8 +34,6 @@ const HEALTH_TYPES = ['用药', '睡眠', '体重', '其他'] // 记录页的手
 // WXSS 不支持中文类名，五行条用英文类名（与首页同一套映射）
 const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
 
-const GROUP_ORDER = ['饮食', '社交', '生活', '自我']
-
 // 拿不到 /api/meta 时的兜底维度，保证离线也能看到结构
 const FALLBACK_DIMS = [
   { key: 'diet.spicy', label: '辣度耐受', group: '饮食', type: 'enum', options: ['不吃辣', '微辣', '中辣', '重辣'] },
@@ -49,6 +47,8 @@ const FALLBACK_DIMS = [
   { key: 'life.city', label: '常驻城市', group: '生活', type: 'text' },
   { key: 'life.budget', label: '单次预算', group: '生活', type: 'number' },
   { key: 'life.rhythm', label: '作息节奏', group: '生活', type: 'enum', options: ['早睡早起', '正常', '夜猫子'] },
+  { key: 'health.moveGoalKcal', label: '每日运动消耗目标', group: '健康', type: 'number' },
+  { key: 'health.moveLike', label: '运动喜好', group: '健康', type: 'text' },
   { key: 'self.identity', label: '自我描述', group: '自我', type: 'text' },
 ]
 
@@ -57,6 +57,8 @@ const SEGS = [
   { key: 'body', label: '健康' },
   { key: 'data', label: '数据' },
 ]
+
+const GROUP_ORDER = ['饮食', '社交', '生活', '健康', '自我']
 
 Page({
   data: {
@@ -83,13 +85,20 @@ Page({
     // ── 健康（只展示授权情况与脱敏摘要；手工记录统一在「记录」页）──
     weun: null,
     weunBusy: false,
-    weunRecorded: false,
     // ── 理解你（带匹配度）/ 记忆 ──
     hints: [],
     hintNote: '',
     recent: [],
     // ── 经验资产摘要（后台数据，只看总数与方向）──
     assetsStats: null,
+    // ── Obsidian 查看 / 导出 ──
+    obsidianLoaded: false,
+    obsidianCount: 0,
+    obsidianNotes: [],
+    obsidianInfo: '',
+    obsidianTruncated: false,
+    expandedNote: '',
+    noteContent: '',
     // ── 简历 ──
     resumeText: '',
     resumeBusy: false,
@@ -428,6 +437,7 @@ Page({
         const step = Math.round((r.today && r.today.step || 0) / 100) * 100
         const kcal = Math.round((r.kcalEstimate || 0) / 10) * 10
         this.setData({ weun: { step, kcal, fastWalkMin: r.fastWalkMin || 0 } })
+        this.autoRecordSteps(step, kcal)
       })
       .catch(e => {
         const msg = (e && e.errMsg && /auth|denied/i.test(e.errMsg)) ? '需要授权微信运动' : ((e && e.message) || '读取失败')
@@ -436,23 +446,92 @@ Page({
       .finally(() => this.setData({ weunBusy: false }))
   },
 
-  // 步数落档案：走同一条 records 流水线（脱敏 + 入库），记的是量级不是原文
-  saveSteps() {
-    const w = this.data.weun
-    if (!w || !w.step) return
-    this.setData({ busy: true })
+  // 自动记录：与首页共用同一个当日标记，一天只记一次
+  autoRecordSteps(step, kcal) {
+    if (!step) return
+    const d = new Date()
+    const p = n => (n < 10 ? '0' + n : '' + n)
+    const key = `werunRec_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    if (wx.getStorageSync(key)) return
+    wx.setStorageSync(key, 1)
     api
-      .record(app.globalData.personId, `今天微信运动约 ${w.step} 步，约 ${w.kcal} 千卡，相当于快走 ${w.fastWalkMin} 分钟`, ['健康', '运动'])
-      .then(() => {
-        this.setData({ weunRecorded: true })
-        wx.showToast({ title: '已记入档案', icon: 'success' })
-      })
-      .catch(e => wx.showToast({ title: e.message || '记录失败', icon: 'none' }))
-      .finally(() => this.setData({ busy: false }))
+      .record(app.globalData.personId, `今天微信运动约 ${step} 步，约 ${kcal} 千卡`, ['健康', '运动'])
+      .catch(() => wx.removeStorageSync(key))
   },
 
-  goRecordHealth() {
+  goRecord() {
     wx.switchTab({ url: '/pages/record/record' })
+  },
+
+  // ── Obsidian：查看 / 导出（读笔记需 scope=vault 票据，与检索同一道门）──
+  async openObsidian() {
+    this.setData({ busy: true, obsidianInfo: '' })
+    try {
+      if (!this.tokenFor('vault')) await this.signTicket(['vault'], '查看我的 Obsidian 笔记')
+      const r = await api.obsidianNotes(app.globalData.personId, this.tokenFor('vault'))
+      this.setData({
+        obsidianLoaded: true,
+        obsidianCount: r.count,
+        obsidianNotes: (r.notes || []).slice(0, 50).map(n => ({
+          ...n,
+          when: n.mtime ? this.fmt(n.mtime) : '',
+          sizeText: n.bytes > 1024 ? `${Math.round(n.bytes / 1024)} KB` : `${n.bytes} B`,
+        })),
+      })
+    } catch (e) {
+      wx.showToast({ title: e.message || '读取失败', icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  // 展开一篇：只取该篇内容 —— 复用导出接口太重，这里用检索接口的单篇能力没有，
+  // 直接前端从导出接口按需取会全量拉，所以展开走「导出后本地找」的缓存策略：
+  // 第一次展开时拉一次全量导出，之后都在本地翻。
+  async toggleNote(e) {
+    const p = e.currentTarget.dataset.path
+    if (this.data.expandedNote === p) {
+      this.setData({ expandedNote: '', noteContent: '' })
+      return
+    }
+    this.setData({ busy: true })
+    try {
+      if (!this._vaultDump) {
+        if (!this.tokenFor('vault')) await this.signTicket(['vault'], '查看我的 Obsidian 笔记')
+        const dump = await api.obsidianExport(app.globalData.personId, this.tokenFor('vault'))
+        this._vaultDump = {}
+        for (const n of dump.notes || []) this._vaultDump[n.path] = n.content
+        this.setData({ obsidianTruncated: !!dump.truncated })
+      }
+      this.setData({
+        expandedNote: p,
+        noteContent: (this._vaultDump[p] || '（这篇没读到，可能在库外或太大）').slice(0, 4000),
+      })
+    } catch (err) {
+      wx.showToast({ title: err.message || '读取失败', icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
+  },
+
+  // 导出：把整库拼成一份 Markdown 落剪贴板（小程序里零权限的可靠路径）
+  async exportObsidian() {
+    this.setData({ busy: true })
+    try {
+      if (!this.tokenFor('vault')) await this.signTicket(['vault'], '导出我的 Obsidian 笔记')
+      const dump = await api.obsidianExport(app.globalData.personId, this.tokenFor('vault'))
+      const text = (dump.notes || []).map(n => `# ${n.title}\n\n${n.content}`).join('\n\n---\n\n')
+      wx.setClipboardData({
+        data: text,
+        success: () => this.setData({
+          obsidianInfo: `已复制 ${dump.count} 篇笔记（${(text.length / 1024).toFixed(0)} KB）到剪贴板，可粘贴进任何笔记工具`,
+        }),
+      })
+    } catch (e) {
+      wx.showToast({ title: e.message || '导出失败', icon: 'none' })
+    } finally {
+      this.setData({ busy: false })
+    }
   },
 
   // ── 简历：选文件或粘贴，原文进保险箱，主库只留脱敏版 ──

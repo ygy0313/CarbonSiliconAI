@@ -203,6 +203,7 @@ module.exports = {
   MAX_PLACE,
   MAX_DAYS,
   todayKey,
+  parseKey,
   addDays,
   diffDays,
   dayLabel,

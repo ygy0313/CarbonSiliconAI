@@ -7,13 +7,18 @@
 //
 // 理由生成策略：每条理由带 category 与 strength，同类只取最强的一条，
 // 最后按 strength 排序取前 3。这样三道菜的理由不会长得一模一样。
+//
+// 2026-10-26：按「早 / 午 / 茶歇 / 晚 / 宵」时段出推荐；定位城市命中招牌加分；
+// 附带饮品候选（茶 / 咖啡 / 汤饮，酒走选酒能力）；对外文案不再出现价格。
 
 const registry = require('./registry')
-const { DISH_LIBRARY } = require('../domain/taxonomy')
+const { DISH_LIBRARY, DRINK_LIBRARY } = require('../domain/taxonomy')
 
 const SPICY_TARGET = { 不吃辣: 0, 微辣: 1, 中辣: 2, 重辣: 3 }
 const SPICY_LABEL = ['不辣', '微辣', '中辣', '重辣']
 const BODY_TAGS = ['胃敏感', '上火', '没胃口', '乏力', '失眠', '宿醉']
+
+const SLOT_LABEL = { breakfast: '早餐', lunch: '午餐', tea: '茶歇', dinner: '晚餐', late: '夜宵' }
 
 function recentEpisodes(repos, personId, days) {
   const since = Date.now() - days * 86400000
@@ -35,9 +40,10 @@ async function run(ctx) {
   const stomach = facts['diet.stomach'] || null
   const tastePref = facts['diet.taste'] || null
   const avoid = String(facts['diet.avoid'] || '').split(/[,，、\s]+/).filter(Boolean)
-  const budget = entities.budget || Number(facts['life.budget']) || null
   const headcount = entities.headcount || 1
   const scene = entities.scene || (headcount === 1 ? 'alone' : null)
+  const slot = SLOT_LABEL[entities.mealType] ? entities.mealType : pickSlot(new Date())
+  const city = (ctx.geo && ctx.geo.city) || facts['life.city'] || ''
 
   // 身体状态：本次记录优先，其次近 3 天记忆
   const recent3 = recentEpisodes(repos, personId, 3)
@@ -66,7 +72,27 @@ async function run(ctx) {
       }
     }
 
-    // ② 身体状态
+    // ② 时段：这个点适不适合吃它
+    const slots = dish.slots || ['lunch', 'dinner']
+    if (slots.includes(slot)) {
+      score += 0.14
+      add('slot', 0.14, `${SLOT_LABEL[slot]}正合适`)
+    } else {
+      score -= 0.18
+      add('slot', 0.18, `更适合当${SLOT_LABEL[slots[slots.length - 1]]}，这个点略重`)
+    }
+    if (slot === 'late' && dish.load !== 'light') {
+      score -= 0.15
+      add('time', 0.15, '夜宵吃这个，睡不好')
+    }
+
+    // ③ 位置：本地招牌优先 —— 人在哪就先看哪的牌子
+    if (city && dish.city === city) {
+      score += 0.12
+      add('geo', 0.12, `${city}的招牌，到了本地值得一试`)
+    }
+
+    // ④ 身体状态
     for (const s of symptoms) {
       if ((dish.helps || []).includes(s)) {
         score += 0.16
@@ -78,7 +104,7 @@ async function run(ctx) {
       }
     }
 
-    // ③ 口味倾向
+    // ⑤ 口味倾向
     if (tastePref && dish.taste) {
       const tasteMap = { 清淡: '甘', 咸鲜: '咸', 重口: '辛', 偏甜: '甘' }
       if (tasteMap[tastePref] === dish.taste) {
@@ -87,7 +113,7 @@ async function run(ctx) {
       }
     }
 
-    // ④ 今日宜味
+    // ⑥ 今日宜味
     if (fortune.favorableTaste && dish.taste === fortune.favorableTaste) {
       score += 0.08
       add('fortune', 0.08, `今日宜${fortune.favorableTaste}味，正好对上`)
@@ -96,7 +122,7 @@ async function run(ctx) {
       score -= 0.06
     }
 
-    // ⑤ 天气
+    // ⑦ 天气
     if (weather.feels === '冷' && dish.element === '土' && dish.load !== 'light') {
       score += 0.08
       add('weather', 0.08, `外面 ${weather.temp}°C，热汤热食顶得住`)
@@ -106,43 +132,20 @@ async function run(ctx) {
       add('weather', 0.07, `天热，清爽的更下口`)
     }
 
-    // ⑥ 场景
+    // ⑧ 场景：只谈份量与节奏，不谈价格
     if (scene === 'alone') {
-      if (dish.price <= 30) {
-        score += 0.09
-        add('scene', 0.09, `一个人吃，${dish.price} 元的份量刚好`)
-      }
+      if (dish.load !== 'heavy') add('scene', 0.05, '一个人吃，份量正好不浪费')
+      else score -= 0.1
       if (dish.min <= 25) {
         score += 0.05
         add('speed', 0.05, `${dish.min} 分钟能上桌`)
       }
-      if (dish.load === 'heavy') score -= 0.1
     } else if (['friends', 'family', 'colleagues'].includes(scene)) {
-      if (dish.price >= 40) {
-        score += 0.08
-        add('scene', 0.08, `${headcount} 个人，这道能摆上桌`)
-      }
       if ((dish.helps || []).includes('待客')) {
         score += 0.08
         add('scene', 0.08, '待客拿得出手')
       }
     }
-
-    // ⑦ 预算
-    if (budget && dish.price > budget) {
-      const over = (dish.price - budget) / budget
-      score -= Math.min(0.45, over * 0.4)
-      if (over > 0.3) add('budget', 0.3, `人均 ${dish.price}，超了你 ${budget} 的预算`)
-    } else if (budget) {
-      add('budget', 0.04, `人均 ${dish.price}，在 ${budget} 预算内`)
-    }
-
-    // ⑧ 时间
-    if (entities.mealType === 'late' && dish.load !== 'light') {
-      score -= 0.15
-      add('time', 0.15, '夜宵吃这个，睡不好')
-    }
-    if (entities.mealType === 'breakfast' && dish.price > 30) score -= 0.2
 
     // ⑨ 记忆：近 7 天吃过的降权
     const eaten = week.find(e => wasEatenRecently(e.text, dish.name))
@@ -173,16 +176,15 @@ async function run(ctx) {
     return { dish, score: Number(Math.max(0, Math.min(1, score)).toFixed(3)), why, evidence }
   }).sort((a, b) => b.score - a.score || a.dish.id.localeCompare(b.dish.id))
 
-  // 备选要有备选的理由：跟第一名比「省多少 / 快多少」，而不是复述同一套话
+  // 备选要有备选的理由：跟第一名比「快多少 / 清淡多少」，而不是复述同一套话
   const top = scored[0]
   function contrast(dish) {
     if (!top || top.dish.id === dish.id) return ''
     const bits = []
-    const dPrice = dish.price - top.dish.price
     const dMin = dish.min - top.dish.min
-    if (dPrice < 0) bits.push(`比「${top.dish.name}」省 ${-dPrice} 元`)
-    if (dMin < 0) bits.push(`快 ${-dMin} 分钟`)
-    else if (dMin > 0) bits.push(`要多等 ${dMin} 分钟`)
+    if (dMin < 0) bits.push(`比「${top.dish.name}」快 ${-dMin} 分钟`)
+    else if (dMin > 0) bits.push(`要比「${top.dish.name}」多等 ${dMin} 分钟`)
+    if (dish.load === 'light' && top.dish.load !== 'light') bits.push('更清爽')
     if (!bits.length) bits.push(`口味上跟「${top.dish.name}」一个路子，换着吃`)
     return bits.join('，')
   }
@@ -203,19 +205,69 @@ async function run(ctx) {
       id: `meal_${dish.id}`,
       kind: i === 0 ? 'primary' : 'option',
       title: dish.name,
-      desc: `${dish.note} · 人均 ${dish.price} 元 · 约 ${dish.min} 分钟 · 约 ${dish.kcal || 0} kcal`,
+      desc: `${dish.note} · 约 ${dish.kcal || 0} kcal${dish.city ? ` · ${dish.city}招牌` : ''}`,
       why: finalWhy.length ? finalWhy : ['和你档案里的口味基本一致'],
       evidence: cited.slice(0, 2),
       score,
       source: '给您请安 · 膳食坊',
       meta: {
         element: dish.element, taste: dish.taste, spicy: dish.spicy,
-        price: dish.price, min: dish.min,
+        slot, min: dish.min,
         kcal: dish.kcal || null,
-        searchKeyword: `${dish.name} ${ctx.geo?.city || facts['life.city'] || ''}`.trim(),
+        searchKeyword: `${dish.name} ${city}`.trim(),
       },
     }
   })
+
+  // ── 饮品候选：茶 / 咖啡 / 汤饮（酒走选酒能力，不混在这里）──
+  const brews = DRINK_LIBRARY.map(b => {
+    let score = 0.5
+    const why = []
+    const slots = b.slots || []
+    if (slots.includes(slot)) {
+      score += 0.15
+      why.push(`${SLOT_LABEL[slot]}喝正合适`)
+    } else {
+      score -= 0.2
+    }
+    for (const s of symptoms) {
+      if ((b.helps || []).includes(s)) {
+        score += 0.18
+        why.push(`${s === '胃敏感' ? '胃不舒服' : s}的时候它是稳妥选项`)
+      }
+    }
+    if (fortune.favorableTaste && b.taste === fortune.favorableTaste) {
+      score += 0.08
+      why.push(`今日宜${fortune.favorableTaste}味，对上`)
+    }
+    if (weather.feels === '冷' && /热|姜|牛奶|大麦/.test(b.note)) {
+      score += 0.06
+      why.push('天冷，热饮先安排上')
+    }
+    if (slot === 'late' && b.kind === '咖啡') {
+      score -= 0.35
+      why.push('夜里别碰咖啡因')
+    }
+    if (slot === 'tea' && b.kind === '咖啡') {
+      score -= 0.1
+      why.push('下午茶点，咖啡因过了这村就影响晚上')
+    }
+    return { b, score: Number(score.toFixed(3)), why: why.slice(0, 2) }
+  }).sort((a, b) => b.score - a.score || a.b.id.localeCompare(b.b.id))
+
+  for (const { b, score, why } of brews.slice(0, 2)) {
+    items.push({
+      id: `brew_${b.id}`,
+      kind: 'option',
+      title: b.name,
+      desc: `${b.kind} · ${b.note} · 约 ${b.kcal} kcal`,
+      why: why.length ? why : ['跟今天的状态搭'],
+      evidence: [],
+      score,
+      source: '给您请安 · 膳食坊',
+      meta: { kind: b.kind, slot, kcal: b.kcal, searchKeyword: `${b.name} ${city}`.trim() },
+    })
+  }
 
   // 明确说清「排除了什么」，比只给推荐更可信
   const excluded = scored
@@ -227,8 +279,18 @@ async function run(ctx) {
 
   return {
     items,
-    meta: { symptoms: [...symptoms], targetSpicy, excludeNote, candidates: DISH_LIBRARY.length },
+    meta: { symptoms: [...symptoms], targetSpicy, slot, slotLabel: SLOT_LABEL[slot], excludeNote, candidates: DISH_LIBRARY.length + DRINK_LIBRARY.length },
   }
+}
+
+// 没显式给时段时按钟点估：5-10 早、10-14 午、14-17 茶歇、17-21 晚、其余宵
+function pickSlot(d) {
+  const h = d.getHours()
+  if (h >= 5 && h < 10) return 'breakfast'
+  if (h < 14) return 'lunch'
+  if (h < 17) return 'tea'
+  if (h < 21) return 'dinner'
+  return 'late'
 }
 
 // 记忆摘要：给前端展示「基于哪句话」
@@ -241,7 +303,7 @@ registry.register({
   service: '给您请安',
   name: '今日膳食',
   icon: '🍲',
-  description: '按口味、身体状态、天气、今日宜味和预算推荐三道菜，并说明理由',
+  description: '按时段、口味、身体状态、天气、今日宜味和所在城市推荐三道菜与两款饮品，并说明理由',
   intents: ['eat', 'drink'],
   needs: ['context.fortune', 'context.weather', 'profile.diet'],
   provides: ['dishes'],

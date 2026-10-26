@@ -19,8 +19,69 @@
     </view>
   </view>
 
-  <!-- ══ 档案：我是谁 ══ -->
+  <!-- ══ 档案：我是谁（生辰置顶 → 经验 → 完整度 → 事实维度）══ -->
   <block wx:if="{{seg === 'file'}}">
+
+    <!-- 生辰：紧凑版，改完自动生成命盘 -->
+    <view class="section mt-16">
+      <text class="section-title">生辰</text>
+      <text class="section-more">{{chart ? '已生成 · 改动自动更新' : '选好日期自动生成'}}</text>
+    </view>
+    <view class="card">
+      <view class="bz-compact">
+        <picker class="bz-item" mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
+          <view class="pick-box {{birthDate ? '' : 'is-empty'}}">{{birthDate || '出生年月日'}}</view>
+        </picker>
+        <picker class="bz-item" range="{{hourOptions}}" value="{{hourIdx}}" bindchange="onHourPick">
+          <view class="pick-box">{{hourOptions[hourIdx]}}</view>
+        </picker>
+      </view>
+      <view class="mt-16">
+        <input class="input" value="{{birthPlace}}" bindinput="onPlace" bindblur="onPlaceDone" placeholder="出生城市（可不填）" maxlength="12" />
+      </view>
+
+      <block wx:if="{{chart}}">
+        <view class="bz-divider"></view>
+        <view class="bz-pillars">
+          <view wx:for="{{chart.four}}" wx:key="label" class="bz-pillar">
+            <text class="bz-label">{{item.label}}</text>
+            <text class="bz-text">{{item.text}}</text>
+            <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
+          </view>
+        </view>
+        <view class="t-sub mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
+        <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
+          <text class="gz-bar-name">{{item.el}}</text>
+          <view class="gz-bar-track">
+            <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
+          </view>
+          <text class="gz-bar-pct">{{item.pct}}%</text>
+        </view>
+        <view class="t-mini mt-8">{{chart.note}}</view>
+      </block>
+      <view class="t-mini mt-16" wx:else>只描述构成与偏好倾向，不作吉凶断言。选好出生日期，命盘自动排出来。</view>
+    </view>
+
+    <!-- 经验：后台沉淀的决策规则，只看总量与方向，明细去 Obsidian 看 -->
+    <view class="section">
+      <text class="section-title">经验</text>
+      <text class="section-more">后台数据 · 明细在 Obsidian</text>
+    </view>
+    <view class="card" wx:if="{{assetsStats}}">
+      <view class="row between">
+        <text class="t-body">共 {{assetsStats.total}} 条经验</text>
+        <text class="t-mini">{{assetsStats.solidified}} 条已固化</text>
+      </view>
+      <view class="asset-grid mt-16">
+        <view class="asset-cell"><text class="asset-num">{{assetsStats.active}}</text><text class="asset-label">可用</text></view>
+        <view class="asset-cell"><text class="asset-num">{{assetsStats.hitPct}}</text><text class="asset-label">奏效率</text></view>
+        <view class="asset-cell"><text class="asset-num">{{assetsStats.effPct}}</text><text class="asset-label">平均有效</text></view>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{assetsStats.nextText}}">{{assetsStats.nextText}}</view>
+    </view>
+    <view class="card" wx:else>
+      <view class="t-mini">还没有经验数据。同类事情记够两次，会自动提炼成一条经验。</view>
+    </view>
 
     <view class="card mt-16">
       <view class="row between">
@@ -63,49 +124,9 @@
       </view>
     </view>
 
-    <!-- 个人八字：紧凑版，改完自动生成命盘 -->
-    <view class="section">
-      <text class="section-title">个人八字</text>
-      <text class="section-more">{{chart ? '已生成 · 改动自动更新' : '选好日期自动生成'}}</text>
-    </view>
-    <view class="card">
-      <view class="bz-compact">
-        <picker class="bz-item" mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
-          <view class="pick-box {{birthDate ? '' : 'is-empty'}}">{{birthDate || '出生年月日'}}</view>
-        </picker>
-        <picker class="bz-item" range="{{hourOptions}}" value="{{hourIdx}}" bindchange="onHourPick">
-          <view class="pick-box">{{hourOptions[hourIdx]}}</view>
-        </picker>
-      </view>
-      <view class="mt-16">
-        <input class="input" value="{{birthPlace}}" bindinput="onPlace" bindblur="onPlaceDone" placeholder="出生城市（可不填）" maxlength="12" />
-      </view>
-
-      <block wx:if="{{chart}}">
-        <view class="bz-divider"></view>
-        <view class="bz-pillars">
-          <view wx:for="{{chart.four}}" wx:key="label" class="bz-pillar">
-            <text class="bz-label">{{item.label}}</text>
-            <text class="bz-text">{{item.text}}</text>
-            <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
-          </view>
-        </view>
-        <view class="t-sub mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
-        <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
-          <text class="gz-bar-name">{{item.el}}</text>
-          <view class="gz-bar-track">
-            <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
-          </view>
-          <text class="gz-bar-pct">{{item.pct}}%</text>
-        </view>
-        <view class="t-mini mt-8">{{chart.note}}</view>
-      </block>
-      <view class="t-mini mt-16" wx:else>只描述构成与偏好倾向，不作吉凶断言。选好出生日期，命盘自动排出来。</view>
-    </view>
-
   </block>
 
-  <!-- ══ 健康：只看授权情况与脱敏摘要；手工记录统一在「记录」页 ══ -->
+  <!-- ══ 健康：只看授权情况与脱敏摘要；明细在首页「动」模块 ══ -->
   <block wx:elif="{{seg === 'body'}}">
 
     <view class="section">
@@ -117,14 +138,14 @@
         <text class="t-body">微信运动（步数）</text>
         <text class="tag {{weun ? 'tag-green' : ''}}">{{weun ? '已授权' : '未读取'}}</text>
       </view>
-      <view class="t-mini mt-8">要读取需要你点头授权；读取的是微信记的步数，不是手机健康库。</view>
+      <view class="t-mini mt-8">要读取需要你点头授权；读取的是微信记的步数。拿到后自动记入档案，不用再点按钮。</view>
 
       <view class="divider"></view>
       <view class="row between">
-        <text class="t-body">iPhone「健康」库（用药 / 睡眠 / 体重）</text>
-        <text class="tag">读不到</text>
+        <text class="t-body">iPhone「健康」库</text>
+        <text class="tag">不接入</text>
       </view>
-      <view class="t-mini mt-8">系统限制：小程序拿不到 iPhone 健康库的这些数据，这一项不是没授权，是读不了。用药、睡眠、体重在「记录」页手工记一笔即可。</view>
+      <view class="t-mini mt-8">系统限制：小程序拿不到 iPhone 健康库数据，这个来源不展示、不做手工补录。</view>
     </view>
 
     <view class="section">
@@ -136,23 +157,12 @@
           <text class="t-body">今天走了约 {{weun.step}} 步</text>
           <text class="rec-kcal">≈ {{weun.kcal}} kcal</text>
         </view>
-        <view class="t-mini mt-8">相当于快走约 {{weun.fastWalkMin}} 分钟。步数取整到百位，逐日明细不出本页。</view>
-        <button class="btn btn-ghost btn-sm mt-16" wx:if="{{!weunRecorded}}" bindtap="saveSteps" disabled="{{busy}}">把今天的量记入档案</button>
-        <view class="t-mini mt-8" wx:else>今天已在案 ✓</view>
+        <view class="t-mini mt-8">步数取整到百位，逐日明细不出本页。今天的量已自动记入档案。</view>
       </block>
       <block wx:else>
         <view class="t-mini">还没读取。点下面按钮并授权微信运动后，这里显示今天的量级。</view>
         <button class="btn btn-primary weun-btn mt-16" bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读取今日步数（需授权）'}}</button>
       </block>
-    </view>
-
-    <view class="section">
-      <text class="section-title">手工记健康</text>
-      <text class="section-more">在「记录」页完成</text>
-    </view>
-    <view class="card">
-      <view class="t-mini">用药、睡眠、体重、其他身体情况，都在记录页写一句、选个「用药 / 睡眠 / 体重」标签即可，一样进档案、一样参与执笔对你的理解。</view>
-      <button class="btn btn-primary weun-btn mt-16" bindtap="goRecordHealth">去记录页记一笔</button>
     </view>
 
   </block>
@@ -177,25 +187,6 @@
       </view>
       <view class="t-mini" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
       <view class="t-mini mt-8" wx:if="{{hintNote}}">{{hintNote}}</view>
-    </view>
-
-    <view class="section">
-      <text class="section-title">经验资产</text>
-      <text class="section-more">后台数据 · 只看方向</text>
-    </view>
-    <view class="card" wx:if="{{assetsStats}}">
-      <view class="row between">
-        <text class="t-body">{{assetsStats.total}} 条经验 · {{assetsStats.active}} 条在用</text>
-        <text class="t-mini">固化 {{assetsStats.solidified}} 条</text>
-      </view>
-      <view class="row between mt-16">
-        <text class="t-mini">采纳命中 {{assetsStats.hitPct}}</text>
-        <text class="t-mini">平均有效性 {{assetsStats.effPct}}</text>
-      </view>
-      <view class="t-mini mt-8" wx:if="{{assetsStats.nextText}}">{{assetsStats.nextText}}</view>
-    </view>
-    <view class="card" wx:else>
-      <view class="t-mini">还没有经验数据。同类事情记够两次，会自动提炼成一条经验。</view>
     </view>
 
     <view class="section">
@@ -235,6 +226,29 @@
     </view>
     <view class="card" wx:else>
       <view class="t-mini">还没有记录。执笔对你还一无所知。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">Obsidian 笔记</text>
+      <text class="section-more">经验与决策沉淀的地方</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">你在 Obsidian 里写的决策笔记，会经 git 同步到这边参与执笔的判断。这里可以翻看，也可以整库导出带走。</view>
+      <view class="row wrap gap-8 mt-16">
+        <button class="btn btn-primary btn-sm" bindtap="openObsidian" disabled="{{busy}}">{{obsidianLoaded ? '刷新列表' : '查看我的笔记'}}</button>
+        <button class="btn btn-ghost btn-sm" bindtap="exportObsidian" disabled="{{busy}}" wx:if="{{obsidianLoaded}}">导出整库到剪贴板</button>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{obsidianLoaded}}">共 {{obsidianCount}} 篇{{obsidianTruncated ? '（导出只含最近一部分）' : ''}} · 点标题展开正文</view>
+      <view class="t-mini mt-8" wx:if="{{obsidianInfo}}">{{obsidianInfo}}</view>
+      <view class="obs-list mt-8" wx:if="{{obsidianNotes.length}}">
+        <view wx:for="{{obsidianNotes}}" wx:key="path" class="obs-item">
+          <view class="row between" bindtap="toggleNote" data-path="{{item.path}}">
+            <text class="t-body grow">{{item.title}}</text>
+            <text class="t-mini">{{item.sizeText}}{{item.when ? ' · ' + item.when : ''}}</text>
+          </view>
+          <view wx:if="{{expandedNote === item.path}}" class="prompt-box mt-8">{{noteContent}}</view>
+        </view>
+      </view>
     </view>
 
     <view class="section">

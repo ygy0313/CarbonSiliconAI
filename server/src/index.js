@@ -334,6 +334,33 @@ const routes = [
       }
     },
   },
+  // ── 按日翻记录：首页「今天的记录」用（北京时间算日期边界）──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/records$/,
+    handler: async ({ params, query }) => {
+      requirePerson(params[0])
+      const date = query.get('date')
+      if (date && !agendaService.parseKey(date)) throw new ValidationError('日期格式应为 YYYY-MM-DD')
+      const all = repos.episode.byPerson(params[0], 500)
+      const episodes = all
+        .filter(e => {
+          const d = new Date(new Date(e.ts).getTime() + 8 * 3600 * 1000)
+          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+          return date ? key === date : key === agendaService.todayKey()
+        })
+        .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+        .slice(0, 100)
+        .map(e => ({
+          id: e.id,
+          ts: e.ts,
+          summary: e.summary || (e.text || '').slice(0, 40),
+          tags: (e.tags || []).slice(0, 4),
+          source: e.source || '',
+        }))
+      return { date: date || agendaService.todayKey(), count: episodes.length, episodes }
+    },
+  },
   // ── 简历：原文进保险箱，主库只留脱敏版 ──
   {
     method: 'POST',
@@ -415,11 +442,16 @@ const routes = [
         recordEpisode(repos, params[0], extracted, 'intent')
       }
 
+      // 前端可以显式指定时段（早/午/茶歇/晚/宵），白名单校验，其余交给规则抽取
+      const SLOT_WHITELIST = ['breakfast', 'lunch', 'tea', 'dinner', 'late']
+      const entities = { ...extracted.entities }
+      if (SLOT_WHITELIST.includes(body.slot)) entities.mealType = body.slot
+
       // 定位可选：前端给了经纬度就按「就近城市」走，没给就回退档案里的城市
       const g = geo.normalizeGeo(body.geo)
       const result = await orchestrate(repos, params[0], text, {
         tags: extracted.tags,
-        entities: extracted.entities,
+        entities,
         geo: g,
       })
       // 前端展示用：定位解析出的城市（人在哪就显示哪，不再显示档案城市）
@@ -628,6 +660,32 @@ const routes = [
         throw new ValidationError('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
       }
       return result
+    },
+  },
+
+  // ── Obsidian 库查看 / 导出（读笔记需 scope=vault 票据；路径只认服务端配置）──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/obsidian\/notes$/,
+    handler: async ({ req, params }) => {
+      requirePerson(params[0])
+      requireGrant(req, params[0], 'vault', { route: 'GET /obsidian/notes' })
+      if (!config.obsidian.vaultPath) {
+        throw new ValidationError('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
+      }
+      return obsidianService.listNotes(config.obsidian.vaultPath)
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/obsidian\/export$/,
+    handler: async ({ req, params }) => {
+      requirePerson(params[0])
+      requireGrant(req, params[0], 'vault', { route: 'GET /obsidian/export' })
+      if (!config.obsidian.vaultPath) {
+        throw new ValidationError('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
+      }
+      return obsidianService.exportNotes(config.obsidian.vaultPath)
     },
   },
 

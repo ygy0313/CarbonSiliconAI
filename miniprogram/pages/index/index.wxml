@@ -10,19 +10,19 @@
     <view class="greet-hello">{{greetHello}}</view>
   </view>
 
-  <!-- 身份条：首页只显示昵称，不显示档案真名 -->
-  <view class="id-row">
+  <!-- 身份条：点一下直接去「我的」页改档案；首页只显示昵称，不显示档案真名 -->
+  <view class="id-row" bindtap="goMine">
     <view class="avatar">{{initial}}</view>
-    <view class="grow" bindtap="setNickname">
+    <view class="grow">
       <view class="id-name {{hasNickname ? '' : 'id-name-empty'}}">{{name}}</view>
       <view class="id-sub" wx:if="{{hasNickname}}">{{identity}}</view>
-      <view class="id-sub" wx:else>昵称只存在这台手机上 · 点这里设置</view>
+      <view class="id-sub" wx:else>点这里去「我的」页完善档案</view>
     </view>
-    <view class="id-right" wx:if="{{mode === 'old'}}" bindtap="goMine">
+    <view class="id-right" wx:if="{{mode === 'old'}}">
       <text class="id-pct">{{completenessPct}}%</text>
       <text class="id-pct-label">档案</text>
     </view>
-    <view class="mode-toggle-sm" wx:else bindtap="toggleMode">
+    <view class="mode-toggle-sm" wx:else catchtap="toggleMode">
       <text class="mode-toggle-text-sm">测·切老用户</text>
     </view>
   </view>
@@ -65,7 +65,7 @@
     </view>
   </block>
 
-  <!-- ══ ① 运 · 今日运程：节气五行 + 今天要做什么 ══ -->
+  <!-- ══ ① 运 · 今日运程：节气五行 + 今日日程（展示为主）══ -->
   <view class="mod-head">
     <view class="mod-icon">运</view>
     <text class="mod-title">今日运程</text>
@@ -88,86 +88,79 @@
     <view class="divider"></view>
     <view class="row between">
       <text class="t-sub">{{agenda.headline}}</text>
-      <text class="t-mini t-green" bindtap="goAgenda">全部 ›</text>
+      <text class="t-mini">与手机日历单向打通：可写不可读（系统限制）</text>
     </view>
-    <view wx:for="{{agenda.items}}" wx:key="id" class="{{item.cls}}">
+    <view wx:for="{{agenda.items}}" wx:key="id" class="ag-line">
       <text class="ag-time">{{item.time}}</text>
-      <text class="ag-title-text">{{item.title}}</text>
+      <text class="ag-title-text grow">{{item.title}}</text>
+      <text class="rec-btn" bindtap="addToCalendar" data-id="{{item.id}}">＋日历</text>
     </view>
-    <view class="t-mini" wx:if="{{agenda.more}}">还有 {{agenda.more}} 件，点「全部」看</view>
-    <view class="t-mini" wx:if="{{!agenda.count}}">空着也是信息 —— 这几天没人占用你。</view>
-    <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" bindtap="goAgenda">记一件事</text>
-      <text class="rec-btn" bindtap="goChatEmpty">让执笔帮我排</text>
-    </view>
+    <view class="t-mini" wx:if="{{!agenda.count}}">空着也是信息 —— 这几天没人占用你。组局方案点「就这么定」后会自动排进来。</view>
   </view>
 
-  <!-- ══ ② 味 · 今日食饮：吃什么 + 喝什么 + 顺手记一笔 ══ -->
+  <!-- ══ ② 味 · 今日食饮：吃 + 饮 揉在一卡，按时段出推荐 ══ -->
   <view class="mod-head">
     <view class="mod-icon">味</view>
     <text class="mod-title">今日食饮</text>
     <text class="mod-meta" wx:if="{{geoState === 'denied'}}" bindtap="openSetting">{{recCity}} · 开定位 ›</text>
-    <text class="mod-meta" wx:else>{{recCity}}{{recNote ? ' · ' + recNote : ''}}</text>
+    <text class="mod-meta" wx:else>{{slotText}} · {{recCity}}{{recNote ? ' · ' + recNote : ''}}</text>
   </view>
 
-  <view class="card" wx:if="{{meal}}">
-    <view class="t-mini mod-tag">吃</view>
-    <view class="rec-top">
-      <text class="rec-title">{{meal.title}}</text>
-      <text class="rec-kcal" wx:if="{{meal.kcal}}">{{meal.kcal}} kcal</text>
-    </view>
-    <view class="rec-desc">{{meal.desc}}</view>
-    <view class="rec-why" wx:for="{{meal.why}}" wx:key="*this">· {{item}}</view>
-    <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" data-kw="{{meal.keyword}}" data-app="大众点评" bindtap="copyKeyword">去大众点评搜</text>
-      <text class="rec-btn" data-kind="meal" bindtap="nextRec" wx:if="{{mealCount > 1}}">换一道</text>
-      <text class="rec-btn" bindtap="goChatEmpty">说得具体点</text>
-    </view>
+  <view class="card" wx:if="{{meal || brew}}">
+    <!-- 吃 -->
+    <block wx:if="{{meal}}">
+      <view class="t-mini mod-tag">吃</view>
+      <view class="rec-top">
+        <text class="rec-title">{{meal.title}}</text>
+        <text class="rec-kcal" wx:if="{{meal.kcal}}">{{meal.kcal}} kcal</text>
+      </view>
+      <view class="rec-desc">{{meal.desc}}</view>
+      <view class="rec-why" wx:for="{{meal.why}}" wx:key="*this">· {{item}}</view>
+      <view class="rec-actions">
+        <text class="rec-btn rec-btn-main" data-kw="{{meal.keyword}}" data-app="大众点评" bindtap="copyKeyword">复制菜名去搜</text>
+        <text class="rec-btn" data-kind="meal" bindtap="nextRec" wx:if="{{mealCount > 1}}">换一道</text>
+      </view>
+    </block>
+    <view class="t-mini" wx:else>这一餐的推荐还没算出来。</view>
+
+    <!-- 饮：茶 / 咖啡 / 汤饮 和吃长在同一张卡里 -->
+    <block wx:if="{{brew}}">
+      <view class="divider"></view>
+      <view class="t-mini mod-tag">饮</view>
+      <view class="rec-top">
+        <text class="rec-title">{{brew.title}}</text>
+      </view>
+      <view class="rec-desc">{{brew.desc}}</view>
+      <view class="rec-why" wx:for="{{brew.why}}" wx:key="*this">· {{item}}</view>
+      <view class="rec-actions" wx:if="{{brewCount > 1}}">
+        <text class="rec-btn" data-kind="brew" bindtap="nextRec">换一杯</text>
+      </view>
+    </block>
+
+    <!-- 酒：只在晚 / 宵时段出现 -->
+    <block wx:if="{{wine}}">
+      <view class="divider"></view>
+      <view class="t-mini mod-tag">酒</view>
+      <view class="rec-top">
+        <text class="rec-title">{{wine.title}}</text>
+      </view>
+      <view class="rec-desc">{{wine.desc}}</view>
+      <view class="rec-why" wx:for="{{wine.why}}" wx:key="*this">· {{item}}</view>
+      <view class="rec-why" wx:if="{{wine.serve}}">· {{wine.serve}}</view>
+      <view class="rec-actions">
+        <text class="rec-btn rec-btn-main" data-kw="{{wine.short}}" data-app="淘宝" bindtap="copyKeyword">复制酒名去搜</text>
+      </view>
+    </block>
   </view>
   <view class="card" wx:else>
-    <view class="t-mini">推荐还没算出来。检查服务地址，或直接跟执笔说一句「中午吃什么」。</view>
+    <view class="t-mini">推荐还没算出来。检查服务地址，或直接跟执笔说一句「{{slotText}}吃什么」。</view>
     <view class="rec-actions">
       <text class="rec-btn rec-btn-main" bindtap="openSetting" wx:if="{{geoState === 'denied'}}">允许定位，按附近推荐</text>
-      <text class="rec-btn" bindtap="goChat" data-text="今天中午吃什么">去问执笔</text>
+      <text class="rec-btn" bindtap="goChat" data-text="{{slotText}}吃什么">去问执笔</text>
     </view>
   </view>
 
-  <view class="card" wx:if="{{wine}}">
-    <view class="t-mini mod-tag">饮</view>
-    <view class="rec-top">
-      <text class="rec-title">{{wine.title}}</text>
-      <text class="t-mini">{{wine.tier}}</text>
-    </view>
-    <view class="rec-desc">{{wine.desc}}</view>
-    <view class="rec-why" wx:for="{{wine.why}}" wx:key="*this">· {{item}}</view>
-    <view class="rec-why" wx:if="{{wine.serve}}">· {{wine.serve}}</view>
-    <view class="wine-note">{{wine.priceNote}}</view>
-    <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" data-kw="{{wine.short}}" data-app="淘宝" bindtap="copyKeyword">复制酒名去搜</text>
-      <text class="rec-btn" bindtap="goChat" data-text="今晚喝点什么，配个家常菜">换个场合</text>
-    </view>
-  </view>
-
-  <!-- 顺手记一笔：写字 · 拍照 · 说话，与记录页同一套能力 -->
-  <view class="card">
-    <view class="t-mini mod-tag">记</view>
-    <textarea class="input taste-input" value="{{tasteText}}" bindinput="onTasteText"
-              placeholder="今天实际吃了喝了什么，一句就够" maxlength="300" auto-height />
-    <image wx:if="{{tastePhoto}}" class="taste-photo" src="{{tastePhoto}}" mode="aspectFill" />
-    <view class="row wrap gap-8" wx:if="{{tasteDishes.length}}">
-      <text wx:for="{{tasteDishes}}" wx:key="name" class="tag tag-green">{{item.name}} · {{item.kcal}} kcal</text>
-    </view>
-    <view class="rec-actions">
-      <text class="rec-btn {{tasteBusy ? 'rec-btn-dim' : ''}}" bindtap="pickTastePhoto">📷 拍一张</text>
-      <text class="rec-btn {{tasteRecording ? 'rec-btn-rec' : ''}} {{tasteBusy ? 'rec-btn-dim' : ''}}"
-            bindtouchstart="startTasteRecord" bindtouchend="stopTasteRecord" bindtouchcancel="cancelTasteRecord">🎤 {{tasteRecording ? tasteRecLabel : '按住说'}}</text>
-      <text class="rec-btn rec-btn-main" bindtap="saveTaste">{{tasteSaving ? '存着…' : '存进档案'}}</text>
-    </view>
-    <view class="t-mini" wx:if="{{tasteHint}}">{{tasteHint}}</view>
-    <view class="t-mini" wx:else>照片和录音只在当场用一下，不保存；文字你确认了才入库。</view>
-  </view>
-
-  <!-- ══ ③ 动 · 动一动：怎么动 + 今天已经动了多少 ══ -->
+  <!-- ══ ③ 动 · 动一动：今天动了多少 + 离目标还差多少 ══ -->
   <view class="mod-head">
     <view class="mod-icon">动</view>
     <text class="mod-title">动一动</text>
@@ -180,42 +173,40 @@
     </view>
     <view class="rec-desc">{{move.desc}}</view>
     <view class="rec-why" wx:for="{{move.why}}" wx:key="*this">· {{item}}</view>
-    <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" data-kw="{{move.keyword}}" data-app="Keep" bindtap="copyKeyword">去 Keep 搜跟练</text>
-      <text class="rec-btn" data-kind="move" bindtap="nextRec" wx:if="{{moveCount > 1}}">换一项</text>
-      <text class="rec-btn" bindtap="openMyMap">看我的位置</text>
+    <view class="rec-actions" wx:if="{{moveCount > 1}}">
+      <text class="rec-btn" data-kind="move" bindtap="nextRec">换一项</text>
     </view>
 
+    <view class="divider"></view>
     <block wx:if="{{werun}}">
-      <view class="divider"></view>
       <view class="row between">
         <text class="t-body">今天已经走了约 {{werun.step}} 步</text>
         <text class="rec-kcal">≈ {{werun.kcal}} kcal</text>
       </view>
-      <view class="t-mini mt-8">相当于快走约 {{werun.fastWalkMin}} 分钟 · 步数取整展示，原文不入库</view>
-      <view class="rec-actions">
-        <text wx:if="{{werunDone}}" class="t-mini">今天已在案 ✓</text>
-        <text wx:elif="{{!werunBusy}}" class="rec-btn rec-btn-main" bindtap="recordSteps">把今天运动量记入档案</text>
-        <text wx:else class="t-mini">记录中…</text>
-      </view>
+      <view class="t-mini mt-8" wx:if="{{moveGapText}}">{{moveGapText}}</view>
+      <view class="t-mini mt-8" wx:else>在「我的 · 档案 · 健康」设个每日消耗目标，这里帮你盯着缺口。</view>
+      <view class="t-mini mt-8" wx:if="{{werunNote}}">{{werunNote}}</view>
     </block>
+    <view class="t-mini" wx:else>微信运动还没授权或暂无数据。授权后这里自动显示今天的量，并自动记入档案。</view>
   </view>
   <view class="card" wx:else>
     <view class="t-mini">拿不到运动建议。允许定位、或直接说「今天想出汗」。</view>
   </view>
 
-  <!-- ══ ④ 梦 · 记个梦 ══ -->
+  <!-- ══ ④ 梦 · 灵光一现：梦 / idea / 金句 / 单词 / link ══ -->
   <view class="mod-head">
     <view class="mod-icon">梦</view>
-    <text class="mod-title">记个梦</text>
-    <text class="mod-meta">只拆意象，不解梦</text>
+    <text class="mod-title">灵光一现</text>
+    <text class="mod-meta">写下来就自动记入档案</text>
   </view>
   <view class="card">
-    <textarea class="input dream-input" value="{{dreamText}}" bindinput="onDreamText" placeholder="昨晚梦见什么，几句就够。趁还记得。" maxlength="300" auto-height />
+    <textarea class="input dream-input" value="{{dreamText}}" bindinput="onDreamText"
+              placeholder="记录你的灵光一现：梦、idea、金句、单词、文章&视频 link" maxlength="500" auto-height />
     <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" bindtap="submitDream">{{dreamBusy ? '拆解中…' : '记下来'}}</text>
-      <text class="rec-btn" bindtap="goChat" data-text="我昨晚做了个梦">去聊这个梦</text>
+      <text class="rec-btn rec-btn-main" bindtap="exploreCreate">{{dreamBusy ? '记着…' : '探索&创造'}}</text>
+      <text class="rec-btn" bindtap="breakThrough">破个局</text>
     </view>
+    <view class="t-mini">「探索&创造」：像战友一样接着聊、一起打磨；「破个局」：拆一拆 —— 梦拆意象与情绪，想法拆出下一步。只给方向，不作吉凶预示。</view>
 
     <block wx:if="{{dream}}">
       <view class="divider"></view>
@@ -233,7 +224,28 @@
     <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
   </view>
 
-  <view class="btn btn-ghost mt-24" bindtap="goRecord">去记录页记一笔</view>
+  <!-- ══ 记 · 按日翻记录：默认今天，可挑任意一天 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">记</view>
+    <text class="mod-title">你的记录</text>
+    <picker mode="date" end="{{recDate}}" value="{{recDate}}" bindchange="onRecDate">
+      <text class="mod-meta t-green">{{recDateLabel}} ›</text>
+    </picker>
+  </view>
+  <view class="card">
+    <view class="t-mini" wx:if="{{dayLoading}}">翻着…</view>
+    <block wx:else>
+      <view class="t-sub">{{recDateLabel}}记了 {{dayCount}} 笔</view>
+      <view wx:for="{{dayRecords}}" wx:key="id" class="ag-line">
+        <text class="ag-time">{{item.time}}</text>
+        <text class="ag-title-text grow">{{item.summary}}</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{!dayCount}}">这天还没落笔。想补记，去「记录」页写一句。</view>
+      <view class="rec-actions">
+        <text class="rec-btn rec-btn-main" bindtap="goRecord">去补一笔</text>
+      </view>
+    </block>
+  </view>
 
 </view>
 

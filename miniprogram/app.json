@@ -2,7 +2,6 @@
   "pages": [
     "pages/index/index",
     "pages/record/record",
-    "pages/agenda/agenda",
     "pages/grant/grant",
     "pages/chat/chat",
     "pages/plan/plan",

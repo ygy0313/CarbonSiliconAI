@@ -148,4 +148,59 @@ function sync(repos, personId, { vaultPath, dryRun = false } = {}) {
   return summary
 }
 
-module.exports = { sync, walkMd, SKIP_DIRS }
+// ── 查看 / 导出（给「我的」页的 Obsidian 入口）────────────────
+// 路径只认服务端配置的 vault，relPath 必须落在 vault 内 —— 防目录穿越。
+function assertInside(vaultPath, full) {
+  const rel = path.relative(vaultPath, full)
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+    const err = new Error('路径不合法')
+    err.code = 'VAULT_PATH_INVALID'
+    throw err
+  }
+  return rel
+}
+
+/** 列出全部笔记（只给元信息：相对路径 / 标题 / 大小 / 更新时间），按更新时间倒序 */
+function listNotes(vaultPath) {
+  if (!vaultPath) {
+    const err = new Error('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
+    err.code = 'VAULT_NOT_CONFIGURED'
+    throw err
+  }
+  const notes = walkMd(vaultPath).map(full => {
+    let stat = {}
+    try { stat = fs.statSync(full) } catch (_) {}
+    return {
+      path: path.relative(vaultPath, full).split(path.sep).join('/'),
+      title: path.basename(full, '.md'),
+      bytes: stat.size || 0,
+      mtime: stat.mtimeMs || 0,
+    }
+  }).sort((a, b) => b.mtime - a.mtime)
+  return { count: notes.length, notes }
+}
+
+/**
+ * 导出笔记内容（带全文）。上限保护：最多 80 篇 / 每篇 256KB / 总量 512KB。
+ * 内容是用户自己的笔记，读取仍要求 scope=vault 票据（路由层拦）。
+ */
+function exportNotes(vaultPath, { maxNotes = 80, maxTotal = 512 * 1024 } = {}) {
+  const { notes } = listNotes(vaultPath)
+  const out = []
+  let total = 0
+  for (const n of notes.slice(0, maxNotes)) {
+    if (total >= maxTotal) break
+    const full = path.join(vaultPath, ...n.path.split('/'))
+    assertInside(vaultPath, full)
+    let content = ''
+    try {
+      content = fs.readFileSync(full, 'utf8')
+    } catch (_) { continue }
+    if (content.length > 256 * 1024) content = content.slice(0, 256 * 1024) + '\n<!-- 截断 -->'
+    total += content.length
+    out.push({ path: n.path, title: n.title, content })
+  }
+  return { count: out.length, truncated: notes.length > out.length, notes: out }
+}
+
+module.exports = { sync, walkMd, SKIP_DIRS, listNotes, exportNotes }

@@ -17,6 +17,8 @@ const FACT_DIMENSIONS = [
   { key: 'life.city', label: '常驻城市', group: '生活', type: 'text', question: '你常驻哪个城市？' },
   { key: 'life.budget', label: '单次预算', group: '生活', type: 'number', question: '一次聚会预算大概多少？' },
   { key: 'life.rhythm', label: '作息节奏', group: '生活', type: 'enum', options: ['早睡早起', '正常', '夜猫子'], question: '你的作息？' },
+  { key: 'health.moveGoalKcal', label: '每日运动消耗目标', group: '健康', type: 'number', question: '你希望每天运动消耗多少千卡？（如 300）' },
+  { key: 'health.moveLike', label: '运动喜好', group: '健康', type: 'text', question: '你喜欢什么运动？（如 游泳、快走、羽毛球）' },
   { key: 'self.identity', label: '自我描述', group: '自我', type: 'text', question: '用一句话描述你自己' },
 ]
 
@@ -74,26 +76,64 @@ const OVERCOME = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' } 
 
 // ── 菜品库 ────────────────────────────────────────────────
 // spicy: 0-3；element: 五行属性；load: 消化负担 light/normal/heavy
-// helps: 适合的身体状态；pains: 不适合的状态；min: 大致出餐分钟；price: 人均
+// helps: 适合的身体状态；pains: 不适合的状态；min: 大致出餐分钟
+// slots: 适合的时段 breakfast/lunch/tea/dinner/late（首页按当前时段出推荐）
+// city: 招牌城市（定位命中时加分 —— 人在哪就先看哪的招牌）
+// 对外不出现价格：费用信息不再进首页食饮模块
 const DISH_LIBRARY = [
-  { id: 'd01', name: '清炖羊肉萝卜', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '乏力', '天冷'], pains: ['上火'], min: 45, price: 48, kcal: 520, note: '宁夏滩羊，汤清不膻' },
-  { id: 'd02', name: '蒿子面', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['没胃口', '胃敏感'], pains: [], min: 20, price: 18, kcal: 420, note: '中宁蒿子面，酸香开胃' },
-  { id: 'd03', name: '羊肉臊子面', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿', '乏力'], pains: ['胃敏感'], min: 25, price: 22, kcal: 560, note: '西北家常，汤浓面筋' },
-  { id: 'd04', name: '手抓羊肉', element: '土', taste: '甘', spicy: 0, load: 'heavy', helps: ['乏力', '待客'], pains: ['胃敏感', '上火'], min: 50, price: 78, kcal: 780, note: '原汤原味，配蒜醋' },
-  { id: 'd05', name: '沙湖大鱼头', element: '水', taste: '咸', spicy: 1, load: 'normal', helps: ['待客', '想补'], pains: [], min: 40, price: 88, kcal: 620, note: '沙湖鲢鱼，汤白味鲜' },
-  { id: 'd06', name: '凉拌沙葱', element: '木', taste: '酸', spicy: 1, load: 'light', helps: ['解腻', '天热'], pains: ['胃寒'], min: 10, price: 16, kcal: 90, note: '贺兰山沙葱，脆爽' },
-  { id: 'd07', name: '枸杞芽煎蛋', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['眼干', '上火'], pains: [], min: 12, price: 22, kcal: 210, note: '本地枸杞芽，微苦回甘' },
-  { id: 'd08', name: '辣糊糊', element: '火', taste: '苦', spicy: 3, load: 'normal', helps: ['嘴馋', '天冷'], pains: ['胃敏感', '上火'], min: 20, price: 25, kcal: 480, note: '银川街头味，慎点' },
-  { id: 'd09', name: '烩小吃', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '想家'], pains: [], min: 25, price: 26, kcal: 520, note: '丸子夹板粉条一锅烩' },
-  { id: 'd10', name: '蒸南瓜小米粥', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '失眠', '上火'], pains: [], min: 30, price: 12, kcal: 260, note: '养胃，晚上也能吃' },
-  { id: 'd11', name: '山药排骨汤', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '乏力'], pains: [], min: 60, price: 42, kcal: 380, note: '温补不燥' },
-  { id: 'd12', name: '蒜香烤羊排', element: '金', taste: '辛', spicy: 1, load: 'heavy', helps: ['待客', '嘴馋'], pains: ['上火', '胃敏感'], min: 45, price: 98, kcal: 920, note: '配红酒很合适' },
-  { id: 'd13', name: '醋溜白菜', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['解腻', '上火'], pains: [], min: 12, price: 14, kcal: 110, note: '清爽收口' },
-  { id: 'd14', name: '八宝茶', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃寒', '熬夜', '待客'], pains: [], min: 5, price: 12, kcal: 90, note: '盖碗八宝，回民待客茶' },
-  { id: 'd15', name: '贺兰山赤霞珠', element: '火', taste: '苦', spicy: 0, load: 'light', helps: ['待客', '小酌'], pains: ['胃敏感'], min: 1, price: 128, kcal: 130, note: '本地酒庄，配红肉' },
-  { id: 'd16', name: '酸汤水饺', element: '木', taste: '酸', spicy: 1, load: 'normal', helps: ['没胃口', '嘴馋'], pains: ['胃敏感'], min: 20, price: 20, kcal: 480, note: '酸辣开胃' },
-  { id: 'd17', name: '黄焖鸡米饭', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿'], pains: [], min: 25, price: 28, kcal: 760, note: '一个人吃的稳妥选择' },
-  { id: 'd18', name: '拌汤（洋芋疙瘩汤）', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '胃寒', '宿醉'], pains: [], min: 15, price: 14, kcal: 320, note: '最家常的安慰' },
+  // 宁夏 · 家乡底子
+  { id: 'd01', name: '清炖羊肉萝卜', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '乏力', '天冷'], pains: ['上火'], min: 45, kcal: 520, slots: ['lunch', 'dinner'], city: '银川', note: '宁夏滩羊，汤清不膻' },
+  { id: 'd02', name: '蒿子面', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['没胃口', '胃敏感'], pains: [], min: 20, kcal: 420, slots: ['lunch', 'dinner'], city: '中卫', note: '中宁蒿子面，酸香开胃' },
+  { id: 'd03', name: '羊肉臊子面', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿', '乏力'], pains: ['胃敏感'], min: 25, kcal: 560, slots: ['lunch', 'dinner', 'late'], city: '银川', note: '西北家常，汤浓面筋' },
+  { id: 'd04', name: '手抓羊肉', element: '土', taste: '甘', spicy: 0, load: 'heavy', helps: ['乏力', '待客'], pains: ['胃敏感', '上火'], min: 50, kcal: 780, slots: ['dinner'], city: '银川', note: '原汤原味，配蒜醋' },
+  { id: 'd05', name: '沙湖大鱼头', element: '水', taste: '咸', spicy: 1, load: 'normal', helps: ['待客', '想补'], pains: [], min: 40, kcal: 620, slots: ['dinner'], city: '石嘴山', note: '沙湖鲢鱼，汤白味鲜' },
+  { id: 'd06', name: '凉拌沙葱', element: '木', taste: '酸', spicy: 1, load: 'light', helps: ['解腻', '天热'], pains: ['胃寒'], min: 10, kcal: 90, slots: ['lunch', 'dinner'], city: '银川', note: '贺兰山沙葱，脆爽' },
+  { id: 'd07', name: '枸杞芽煎蛋', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['眼干', '上火'], pains: [], min: 12, kcal: 210, slots: ['breakfast', 'lunch'], city: '中宁', note: '本地枸杞芽，微苦回甘' },
+  { id: 'd08', name: '辣糊糊', element: '火', taste: '苦', spicy: 3, load: 'normal', helps: ['嘴馋', '天冷'], pains: ['胃敏感', '上火'], min: 20, kcal: 480, slots: ['dinner', 'late'], city: '银川', note: '银川街头味，慎点' },
+  { id: 'd09', name: '烩小吃', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '想家'], pains: [], min: 25, kcal: 520, slots: ['lunch', 'dinner'], city: '银川', note: '丸子夹板粉条一锅烩' },
+  { id: 'd10', name: '蒸南瓜小米粥', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '失眠', '上火'], pains: [], min: 30, kcal: 260, slots: ['breakfast', 'late'], note: '养胃，晚上也能吃' },
+  { id: 'd11', name: '山药排骨汤', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '乏力'], pains: [], min: 60, kcal: 380, slots: ['lunch', 'dinner'], note: '温补不燥' },
+  { id: 'd12', name: '蒜香烤羊排', element: '金', taste: '辛', spicy: 1, load: 'heavy', helps: ['待客', '嘴馋'], pains: ['上火', '胃敏感'], min: 45, kcal: 920, slots: ['dinner'], city: '银川', note: '配红酒很合适' },
+  { id: 'd13', name: '醋溜白菜', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['解腻', '上火'], pains: [], min: 12, kcal: 110, slots: ['lunch', 'dinner'], note: '清爽收口' },
+  { id: 'd16', name: '酸汤水饺', element: '木', taste: '酸', spicy: 1, load: 'normal', helps: ['没胃口', '嘴馋'], pains: ['胃敏感'], min: 20, kcal: 480, slots: ['lunch', 'dinner', 'late'], note: '酸辣开胃' },
+  { id: 'd17', name: '黄焖鸡米饭', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿'], pains: [], min: 25, kcal: 760, slots: ['lunch', 'dinner'], note: '一个人吃的稳妥选择' },
+  { id: 'd18', name: '拌汤（洋芋疙瘩汤）', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '胃寒', '宿醉'], pains: [], min: 15, kcal: 320, slots: ['breakfast', 'lunch', 'late'], note: '最家常的安慰' },
+  // 早餐
+  { id: 'd19', name: '豆浆油条', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['赶时间', '饿'], pains: ['上火'], min: 10, kcal: 380, slots: ['breakfast'], note: '热豆浆配现炸油条，快' },
+  { id: 'd20', name: '鸡蛋灌饼', element: '土', taste: '咸', spicy: 0, load: 'normal', helps: ['赶时间', '饿'], pains: [], min: 8, kcal: 450, slots: ['breakfast'], note: '路边摊王者，拎着走' },
+  { id: 'd21', name: '皮蛋瘦肉粥', element: '水', taste: '咸', spicy: 0, load: 'light', helps: ['胃敏感', '没胃口'], pains: [], min: 15, kcal: 320, slots: ['breakfast', 'late'], note: '绵软养胃，早起没胃口就它' },
+  { id: 'd22', name: '小笼包 + 豆腐脑', element: '木', taste: '咸', spicy: 0, load: 'light', helps: ['饿'], pains: [], min: 12, kcal: 420, slots: ['breakfast'], note: '一笼一腕，经典搭配' },
+  { id: 'd23', name: '燕麦酸奶碗', element: '水', taste: '甘', spicy: 0, load: 'light', helps: ['减脂', '赶时间'], pains: ['胃寒'], min: 5, kcal: 260, slots: ['breakfast'], note: '冷食快手上手，加坚果更顶' },
+  // 江浙 / 杭州（人在哪就先推哪的招牌）
+  { id: 'd24', name: '片儿川', element: '木', taste: '咸', spicy: 0, load: 'light', helps: ['饿', '没胃口'], pains: [], min: 15, kcal: 480, slots: ['breakfast', 'lunch'], city: '杭州', note: '雪菜笋片肉丝浇头，杭州早面' },
+  { id: 'd25', name: '西湖醋鱼', element: '水', taste: '酸', spicy: 0, load: 'light', helps: ['待客'], pains: ['胃寒'], min: 30, kcal: 380, slots: ['lunch', 'dinner'], city: '杭州', note: '草鱼浇糖醋汁，杭帮名菜' },
+  { id: 'd26', name: '东坡肉', element: '土', taste: '甘', spicy: 0, load: 'heavy', helps: ['乏力', '待客'], pains: ['胃敏感', '上火'], min: 40, kcal: 820, slots: ['dinner'], city: '杭州', note: '酥而不碎，肥而不腻' },
+  { id: 'd27', name: '虾爆鳝面', element: '木', taste: '咸', spicy: 0, load: 'normal', helps: ['饿', '乏力'], pains: [], min: 20, kcal: 560, slots: ['lunch', 'dinner'], city: '杭州', note: '奎元馆看家面' },
+  { id: 'd28', name: '龙井虾仁', element: '木', taste: '甘', spicy: 0, load: 'light', helps: ['待客', '解腻'], pains: [], min: 25, kcal: 320, slots: ['lunch', 'dinner'], city: '杭州', note: '茶香入菜，清口' },
+  { id: 'd29', name: '葱包桧', element: '木', taste: '咸', spicy: 0, load: 'light', helps: ['嘴馋'], pains: [], min: 10, kcal: 300, slots: ['tea', 'breakfast'], city: '杭州', note: '街头小吃，甜面酱刷着吃' },
+  // 轻食茶歇
+  { id: 'd30', name: '三明治 + 水果杯', element: '木', taste: '甘', spicy: 0, load: 'light', helps: ['赶时间', '减脂'], pains: [], min: 8, kcal: 350, slots: ['breakfast', 'tea'], note: '下午垫一垫，不占肚子' },
+  { id: 'd31', name: '红薯（烤）', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['饿', '天冷'], pains: [], min: 5, kcal: 260, slots: ['tea', 'late'], note: '冬天街头的暖手又顶饿' },
+  { id: 'd32', name: '坚果酸奶杯', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['嘴馋', '减脂'], pains: [], min: 3, kcal: 220, slots: ['tea'], note: '办公室抽屉里就能凑一份' },
+  // 夜宵
+  { id: 'd33', name: '小龙虾（十三香）', element: '火', taste: '辛', spicy: 2, load: 'normal', helps: ['嘴馋', '朋友'], pains: ['胃敏感', '上火'], min: 30, kcal: 620, slots: ['dinner', 'late'], note: '夜宵社交之王，剥着吃不着急' },
+  { id: 'd34', name: '烤串（羊肉小串）', element: '金', taste: '辛', spicy: 1, load: 'normal', helps: ['嘴馋', '朋友'], pains: ['胃敏感', '上火'], min: 20, kcal: 560, slots: ['dinner', 'late'], city: '银川', note: '深夜的路边香气' },
+  { id: 'd35', name: '馄饨（小碗）', element: '水', taste: '咸', spicy: 0, load: 'light', helps: ['胃敏感', '晚归'], pains: [], min: 12, kcal: 340, slots: ['breakfast', 'late'], note: '夜里一碗热汤，收尾收得舒服' },
+]
+
+// ── 饮品库（茶 / 咖啡 / 汤饮；酒走选酒能力，不在这）────────
+// slots 同菜品；kcal 给量级
+const DRINK_LIBRARY = [
+  { id: 'b01', name: '八宝茶', kind: '茶', taste: '甘', slots: ['breakfast', 'lunch', 'tea'], helps: ['熬夜', '胃寒', '待客'], kcal: 90, note: '盖碗八宝，回甘压得住午后的燥' },
+  { id: 'b02', name: '龙井（明前）', kind: '茶', taste: '甘', slots: ['lunch', 'tea'], helps: ['犯困', '解腻'], kcal: 20, note: '绿茶提神，饭后一杯正好' },
+  { id: 'b03', name: '枸杞拿铁', kind: '咖啡', taste: '甘', slots: ['breakfast', 'lunch', 'tea'], helps: ['犯困', '乏力'], kcal: 180, note: '宁夏枸杞配奶咖，家乡味进了咖啡杯' },
+  { id: 'b04', name: '美式咖啡', kind: '咖啡', taste: '苦', slots: ['breakfast', 'lunch'], helps: ['犯困', '提神'], kcal: 10, note: '干净直接，午后两点后少喝' },
+  { id: 'b05', name: '燕麦拿铁', kind: '咖啡', taste: '甘', slots: ['breakfast', 'lunch', 'tea'], helps: ['犯困', '胃敏感'], kcal: 150, note: '奶感足不刺激胃' },
+  { id: 'b06', name: '桂花酸梅汤', kind: '饮', taste: '酸', slots: ['lunch', 'tea', 'dinner'], helps: ['解腻', '天热', '没胃口'], kcal: 110, note: '生津解腻，吃涮肉烤肉都配' },
+  { id: 'b07', name: '红枣姜茶', kind: '饮', taste: '甘', slots: ['breakfast', 'tea'], helps: ['胃寒', '天冷', '乏力'], kcal: 100, note: '手脚发凉的日子喝它' },
+  { id: 'b08', name: '无糖气泡水', kind: '饮', taste: '甘', slots: ['lunch', 'tea', 'dinner', 'late'], helps: ['解腻', '减脂'], kcal: 0, note: '想喝有气儿的又不想带糖' },
+  { id: 'b09', name: '热牛奶', kind: '饮', taste: '甘', slots: ['breakfast', 'late'], helps: ['失眠', '胃敏感'], kcal: 140, note: '睡前一小杯，助的是心情不是药效' },
+  { id: 'b10', name: '大麦茶', kind: '茶', taste: '甘', slots: ['lunch', 'dinner', 'late'], helps: ['解腻', '胃敏感'], kcal: 15, note: '烤肉火锅店的老搭档，温的最好' },
 ]
 
 // ── 剧本杀本库 ────────────────────────────────────────────
@@ -188,6 +228,7 @@ module.exports = {
   GENERATE,
   OVERCOME,
   DISH_LIBRARY,
+  DRINK_LIBRARY,
   SCRIPT_LIBRARY,
   SOLO_LIBRARY,
   NPC_TEMPLATES,

@@ -61,11 +61,16 @@ module.exports = {
   getProfile: personId => request(`/api/persons/${personId}/profile`),
   getConflicts: personId => request(`/api/persons/${personId}/conflicts`),
   getInvocations: personId => request(`/api/persons/${personId}/invocations`),
-  // geo: {lat, lon} —— 首页按当前位置推荐；remember:false —— 自动推荐不写进记忆
+  // geo: {lat, lon} —— 首页按当前位置推荐；slot: 早/午/茶歇/晚/宵；remember:false —— 自动推荐不写进记忆
   orchestrate: (personId, text, tags, opts = {}) =>
     request(`/api/persons/${personId}/orchestrate`, {
       method: 'POST',
-      data: { text, tags, geo: opts.geo || undefined, remember: opts.remember !== false },
+      data: {
+        text, tags,
+        geo: opts.geo || undefined,
+        slot: opts.slot || undefined,
+        remember: opts.remember !== false,
+      },
     }),
   record: (personId, text, tags) =>
     request(`/api/persons/${personId}/records`, { method: 'POST', data: { text, tags } }),
@@ -132,6 +137,16 @@ module.exports = {
     request(`/api/persons/${personId}/agenda/${id}/done`, { method: 'POST', data: { done } }),
   removeAgenda: (personId, id) =>
     request(`/api/persons/${personId}/agenda/${id}/remove`, { method: 'POST', data: {} }),
+
+  // ── 按日翻记录：首页「今天的记录」模块 ──
+  getRecordsByDate: (personId, date) =>
+    request(`/api/persons/${personId}/records${date ? `?date=${date}` : ''}`),
+
+  // ── Obsidian 库查看 / 导出（读笔记需 scope=vault 票据）──
+  obsidianNotes: (personId, token) =>
+    request(`/api/persons/${personId}/obsidian/notes`, { token }),
+  obsidianExport: (personId, token) =>
+    request(`/api/persons/${personId}/obsidian/export`, { token, timeout: 20000 }),
 
   // ── 经验资产 ──
   getExperiences: (personId, status) =>
