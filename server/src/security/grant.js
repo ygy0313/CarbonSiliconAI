@@ -16,6 +16,7 @@ const SCOPES = {
   export: { label: '导出档案', desc: '生成可离线保存、可在别处恢复的标准导出文件' },
   raw: { label: '还原原文', desc: '解密被脱敏前的原始记录文本' },
   pii: { label: '读取身份信息', desc: '还原手机号/证件号等被剥离的身份字段' },
+  vault: { label: '检索 Obsidian 笔记', desc: '在个人知识库里全文检索并返回命中片段' },
 }
 
 const DEFAULT_TTL = 15 * 60 // 15 分钟

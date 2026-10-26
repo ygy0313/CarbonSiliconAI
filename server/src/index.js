@@ -36,6 +36,7 @@ const { exportArchive, importArchive, verifyArchive } = require('./services/expo
 const experienceService = require('./services/experience.service')
 const reflectService = require('./services/reflect.service')
 const obsidianService = require('./services/obsidian.service')
+const vaultSearch = require('./services/vaultsearch.service')
 const core = require('./core/client')
 const vault = require('./security/vault')
 const grant = require('./security/grant')
@@ -470,6 +471,24 @@ const routes = [
         dryRun: body && body.dryRun === true,
       })
       return { summary, vaultConfigured: !!config.obsidian.vaultPath }
+    },
+  },
+
+  // ── Obsidian 库全文检索（读笔记需 scope=vault 票据，片段不含未授权全文）──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/vault\/search$/,
+    handler: async ({ req, params, query }) => {
+      requirePerson(params[0])
+      requireGrant(req, params[0], 'vault', { route: 'GET /vault/search', q: (query.get('q') || '').slice(0, 50) })
+      const q = query.get('q') || ''
+      if (!q.trim()) throw new ValidationError('缺少检索词 q')
+      const limit = Number(query.get('limit')) || 8
+      const result = vaultSearch.search({ vaultPath: config.obsidian.vaultPath, q, limit })
+      if (!config.obsidian.vaultPath) {
+        throw new ValidationError('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
+      }
+      return result
     },
   },
 

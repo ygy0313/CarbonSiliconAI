@@ -97,6 +97,10 @@ module.exports = {
   // ── 法律文本（隐私政策 / 用户协议）──
   getLegal: id => request(`/api/legal/${id}`),
 
+  // ── Obsidian 笔记检索（读笔记需 scope=vault 票据）──
+  vaultSearch: (personId, q, token) =>
+    request(`/api/persons/${personId}/vault/search?q=${encodeURIComponent(q)}`, { token }),
+
   // ── 输入端：拍照识食 / 语音转写（都只转换，不落库）──
   // 这两条比普通请求慢：识图 20s、转写 30s，按后端的时间线留出余量。
   recognizeMeal: (personId, image, label) =>

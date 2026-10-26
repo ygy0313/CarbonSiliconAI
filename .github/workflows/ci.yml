@@ -104,6 +104,9 @@ jobs:
       - name: 执笔人格回归（不做应声虫约定/品牌红线）
         run: node server/scripts/check-persona.js
 
+      - name: vault 检索回归（打分/缓存/scope=vault 票据）
+        run: node server/scripts/check-vaultsearch.js
+
       - name: 干支历算自检（26 项）
         run: node server/scripts/verify-ganzhi.js
 
