@@ -104,7 +104,21 @@ async function orchestrate(repos, personId, text, opts = {}) {
   }
 
   // ── 1. 意图 ──
-  const intent = detectIntent(text)
+  let intent = detectIntent(text)
+  // 前端显式给了时段（早/午/茶歇/晚/宵），那就是在问吃的 —— 时段本身就是强信号，
+  // 不能因为文案里没写「吃」字就判成「还没听懂」，首页会因此空白。
+  const hasSlot = !!(opts.entities && opts.entities.mealType)
+  if (hasSlot && intent.type !== 'eat' && intent.type !== 'gather' && intent.type !== 'drink') {
+    intent = {
+      type: 'eat',
+      label: '今天吃什么',
+      service: '给您请安',
+      confidence: Math.max(intent.confidence, 0.7),
+      matched: intent.matched.concat(['时段']),
+      secondary: null,
+      bySlot: true,
+    }
+  }
   push('intent', `识别意图：${intent.label}`, { detail: intent.matched.join('、'), confidence: intent.confidence })
 
   // ── 2. 编译人格包──

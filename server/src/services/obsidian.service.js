@@ -17,6 +17,7 @@ const path = require('path')
 const log = require('../logger')
 const X = require('../domain/experience')
 const OB = require('../domain/obsidian')
+const G = require('../domain/growth')
 
 const SKIP_DIRS = new Set(['.obsidian', '.git', '.trash', 'node_modules'])
 const MAX_FILES = 5000
@@ -203,4 +204,97 @@ function exportNotes(vaultPath, { maxNotes = 80, maxTotal = 512 * 1024 } = {}) {
   return { count: out.length, truncated: notes.length > out.length, notes: out }
 }
 
-module.exports = { sync, walkMd, SKIP_DIRS, listNotes, exportNotes }
+/**
+ * 成长条目：不是「文件列表」，而是「你最近在更新与提升的地方」。
+ *
+ * 做法：扫 vault，优先取 decision-experience 笔记，其次取正文带复盘/教训/反思这类词的笔记，
+ * 按主题（判断/表达/工程/带人/身体/情绪/生意/学习）聚合成方向，每个方向给最近一篇做证据。
+ * 不做的事：不替用户下结论「你进步了」，只陈述「你在写什么、写了多少」。
+ */
+function growth(vaultPath) {
+  if (!vaultPath) return { configured: false, themes: [], recent: [], note: '服务端没配 OBSIDIAN_VAULT_PATH' }
+  let stat
+  try {
+    stat = fs.statSync(vaultPath)
+  } catch (_) {
+    return { configured: false, themes: [], recent: [], note: 'Obsidian 库路径不可访问' }
+  }
+  if (!stat.isDirectory()) return { configured: false, themes: [], recent: [], note: 'OBSIDIAN_VAULT_PATH 不是目录' }
+
+  const KEYWORD = /复盘|反思|教训|学到|提升|改进|总结|下次|决定|选择/g
+  const notes = []
+  for (const full of walkMd(vaultPath)) {
+    let md
+    try {
+      md = fs.readFileSync(full, 'utf8')
+    } catch (_) {
+      continue
+    }
+    if (md.length > MAX_SIZE) continue
+    let st = {}
+    try { st = fs.statSync(full) } catch (_) {}
+
+    const { frontmatter, body } = OB.parseFrontmatter(md)
+    const isDecision = frontmatter && frontmatter.type === 'decision-experience'
+    const hitCount = (body.match(KEYWORD) || []).length
+    if (!isDecision && hitCount < 2) continue
+
+    const tags = frontmatter && frontmatter.tags
+      ? String(frontmatter.tags).replace(/[\[\]]/g, '').split(/[,，\s]+/).filter(Boolean).slice(0, 6)
+      : []
+    const plain = body.replace(/^#+\s*/gm, '').replace(/\s+/g, ' ').trim()
+    const insight = isDecision
+      ? String((frontmatter && (frontmatter.outcome || frontmatter.action)) || plain).slice(0, 80)
+      : plain.slice(0, 80)
+
+    notes.push({
+      path: path.relative(vaultPath, full).split(path.sep).join('/'),
+      title: path.basename(full, '.md'),
+      when: st.mtimeMs || 0,
+      insight,
+      tags,
+      isDecision,
+      score: (isDecision ? 4 : 0) + hitCount,
+      text: plain.slice(0, 400),
+    })
+  }
+
+  notes.sort((a, b) => b.score - a.score || b.when - a.when)
+  const picked = notes.slice(0, 40)
+
+  // 按主题聚合：每条笔记过一遍主题打分，取它最强的那个主题
+  const byTopic = new Map()
+  for (const n of picked) {
+    const ranked = G.rankTopics([n.text, n.title], n.tags, 1)
+    const top = ranked[0]
+    if (!top || top.score === 0) continue
+    const id = top.topic.id
+    const cur = byTopic.get(id) || { id, name: top.topic.name, why: top.topic.why, count: 0, lastAt: 0, latest: null }
+    cur.count += 1
+    if (n.when >= cur.lastAt) {
+      cur.lastAt = n.when
+      cur.latest = { title: n.title, insight: n.insight, path: n.path, tags: n.tags }
+    }
+    byTopic.set(id, cur)
+  }
+
+  const themes = [...byTopic.values()].sort((a, b) => b.count - a.count || b.lastAt - a.lastAt).slice(0, 6)
+
+  return {
+    configured: true,
+    themes,
+    recent: picked.slice(0, 6).map(n => ({
+      title: n.title,
+      insight: n.insight,
+      when: n.when,
+      isDecision: n.isDecision,
+      tags: n.tags,
+    })),
+    scanned: notes.length,
+    note: notes.length
+      ? ''
+      : '还没读到成长类的笔记。在 Obsidian 里写「复盘 / 教训 / 下次怎么做」，或在 frontmatter 标 type: decision-experience。',
+  }
+}
+
+module.exports = { sync, walkMd, SKIP_DIRS, listNotes, exportNotes, growth }

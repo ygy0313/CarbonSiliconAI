@@ -126,8 +126,30 @@ module.exports = {
     request(`/api/persons/${personId}/voice/transcribe`, { method: 'POST', data: { audio, mime }, timeout: 35000 }),
 
   // ── 简历：原文进保险箱，主库只留脱敏版 ──
+  // text：直接粘贴；file：{ name, base64 } —— docx/pdf/txt/md 由服务端解析
   resume: (personId, text) =>
     request(`/api/persons/${personId}/resume`, { method: 'POST', data: { text }, timeout: 20000 }),
+  resumeFile: (personId, file) =>
+    request(`/api/persons/${personId}/resume`, {
+      method: 'POST',
+      data: { file: { name: file.name, base64: file.base64 } },
+      timeout: 45000,
+    }),
+
+  // ── 成长条目：你最近在更新与提升的地方（读笔记需 scope=vault 票据）──
+  getGrowth: (personId, token) => request(`/api/persons/${personId}/growth`, { token, timeout: 15000 }),
+
+  // ── 灵光一现：入档 + 按主题给输入 ──
+  spark: (personId, text, tags) =>
+    request(`/api/persons/${personId}/spark`, { method: 'POST', data: { text, tags }, timeout: 20000 }),
+
+  // ── 行为痕迹：只记动作，不记正文 ──
+  behaviors: (personId, items) =>
+    request(`/api/persons/${personId}/behaviors`, { method: 'POST', data: { items } }),
+  behaviorSummary: (personId, days) =>
+    request(`/api/persons/${personId}/behaviors/summary?days=${days || 30}`),
+  clearBehaviors: personId =>
+    request(`/api/persons/${personId}/behaviors/clear`, { method: 'POST', data: {} }),
 
   // ── 日程：用户认下的事 ──
   getAgenda: (personId, days) => request(`/api/persons/${personId}/agenda?days=${days || 7}`),

@@ -124,32 +124,78 @@
       </view>
     </view>
 
-  </block>
-
-  <!-- ══ 健康：只看授权情况与脱敏摘要；明细在首页「动」模块 ══ -->
-  <block wx:elif="{{seg === 'body'}}">
-
+    <!-- 运动偏好：原来首页硬推的「快走 30 分钟」搬到这里，首页只显示你选的那个 -->
     <view class="section">
-      <text class="section-title">数据来源与授权</text>
-      <text class="section-more">本页只显示脱敏摘要</text>
+      <text class="section-title">动起来想做什么</text>
+      <text class="section-more">{{moveLike || '还没选'}}</text>
     </view>
     <view class="card">
-      <view class="row between">
-        <text class="t-body">微信运动（步数）</text>
-        <text class="tag {{weun ? 'tag-green' : ''}}">{{weun ? '已授权' : '未读取'}}</text>
+      <view class="t-mini">选一个你愿意重复做的。首页「动」只报今天消耗了多少、离目标还差多少，不再替你安排动作。</view>
+      <view class="row wrap gap-8 mt-16">
+        <view wx:for="{{moveLikes}}" wx:key="name"
+              class="chip {{moveLike === item.name ? 'chip-on' : ''}}"
+              bindtap="pickMoveLike" data-name="{{item.name}}">
+          <text>{{item.name}}</text>
+          <text class="chip-sub">≈{{item.kcal}}</text>
+        </view>
       </view>
-      <view class="t-mini mt-8">要读取需要你点头授权；读取的是微信记的步数。拿到后自动记入档案，不用再点按钮。</view>
+      <view class="t-mini mt-8">kcal 是 30 分钟中等强度的量级参考，不是精确值。</view>
+    </view>
 
-      <view class="divider"></view>
-      <view class="row between">
-        <text class="t-body">iPhone「健康」库</text>
-        <text class="tag">不接入</text>
+    <!-- 个人简历：支持 docx / pdf / txt / md，原文进保险箱 -->
+    <view class="section">
+      <text class="section-title">个人简历</text>
+      <text class="section-more">原文进保险箱</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">Word（.docx）和 PDF 都能直接传，服务端解析成文本后入库；手机号、证件号、门牌会被抹掉，原文加密另存。文件本身不落盘，解析完即弃。</view>
+      <view class="row wrap gap-8 mt-16">
+        <button class="btn btn-primary btn-sm" bindtap="pickResumeFile" disabled="{{resumeBusy}}">{{resumeBusy ? '处理中…' : '传文件（docx / pdf / txt / md）'}}</button>
       </view>
-      <view class="t-mini mt-8">系统限制：小程序拿不到 iPhone 健康库数据，这个来源不展示、不做手工补录。</view>
+      <view class="mt-16">
+        <textarea class="input" value="{{resumeText}}" bindinput="onResumeText"
+                  placeholder="也可以直接把简历内容粘贴到这里" maxlength="20000" auto-height />
+      </view>
+      <view class="row wrap gap-8 mt-16" wx:if="{{resumeText}}">
+        <button class="btn btn-ghost btn-sm" bindtap="submitResume" disabled="{{resumeBusy}}">存这段文字</button>
+      </view>
+      <view class="row wrap gap-8 mt-16" wx:if="{{resumeHits.length}}">
+        <text wx:for="{{resumeHits}}" wx:key="*this" class="tag tag-amber">{{item}} 已抹掉</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{resumeInfo}}">{{resumeInfo}}</view>
+    </view>
+
+  </block>
+
+  <!-- ══ 授权：一处看全所有数据来源，能开的开、能关的关 ══ -->
+  <block wx:elif="{{seg === 'auth'}}">
+
+    <view class="section">
+      <text class="section-title">数据来源</text>
+      <text class="section-more">点一行就是开关</text>
+    </view>
+    <view class="card">
+      <view wx:for="{{authItems}}" wx:key="key" class="auth-row" bindtap="tapAuth" data-key="{{item.key}}">
+        <view class="row between">
+          <text class="t-body">{{item.name}}</text>
+          <text class="tag {{item.on ? 'tag-green' : ''}}">{{item.actionText}}</text>
+        </view>
+        <view class="t-mini mt-8">{{item.desc}}</view>
+      </view>
+    </view>
+
+    <view class="card mt-16">
+      <view class="t-mini">小程序只能管微信给的这些权限，撤销要走系统设置 —— 这不是我藏起来，是平台不允许应用自己撤。</view>
+      <view class="row wrap gap-8 mt-16">
+        <button class="btn btn-primary btn-sm" bindtap="authorizeAll" disabled="{{authBusy}}">{{authBusy ? '请求中…' : '一键授权'}}</button>
+        <button class="btn btn-ghost btn-sm" bindtap="openAuthSetting">去系统设置</button>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{authNote}}">{{authNote}}</view>
     </view>
 
     <view class="section">
       <text class="section-title">今日运动量（脱敏）</text>
+      <text class="section-more">明细在首页「动」</text>
     </view>
     <view class="card">
       <block wx:if="{{weun}}">
@@ -160,8 +206,33 @@
         <view class="t-mini mt-8">步数取整到百位，逐日明细不出本页。今天的量已自动记入档案。</view>
       </block>
       <block wx:else>
-        <view class="t-mini">还没读取。点下面按钮并授权微信运动后，这里显示今天的量级。</view>
-        <button class="btn btn-primary weun-btn mt-16" bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读取今日步数（需授权）'}}</button>
+        <view class="t-mini">还没读到。授权微信运动后，这里显示今天的量级，并自动记入档案。</view>
+        <button class="btn btn-primary weun-btn mt-16" bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读取今日步数'}}</button>
+      </block>
+    </view>
+
+    <view class="section">
+      <text class="section-title">你的使用习惯</text>
+      <text class="section-more">只统计站内动作</text>
+    </view>
+    <view class="card">
+      <view class="t-mini" wx:if="{{habitLoading}}">算着…</view>
+      <block wx:elif="{{habit}}">
+        <view class="t-body">{{habit.habit}}</view>
+        <view class="asset-grid mt-16" wx:if="{{habit.top.length}}">
+          <view class="asset-cell" wx:for="{{habit.top}}" wx:key="name">
+            <text class="asset-num">{{item.count}}</text>
+            <text class="asset-label">{{item.name}}</text>
+          </view>
+        </view>
+        <view class="t-mini mt-8">{{habit.boundary}}</view>
+        <view class="row wrap gap-8 mt-16">
+          <button class="btn btn-ghost btn-sm" bindtap="clearHabit">清空这些痕迹</button>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="t-mini">还没攒到足够的使用痕迹。用几天之后，这里会显示你习惯从哪个功能开始。</view>
+        <view class="t-mini mt-8">你在抖音、小红书、淘宝里看什么买什么，小程序读不到 —— 那是别的 App 的数据，微信不开放。要这类信息只能你自己导入。</view>
       </block>
     </view>
 
@@ -189,24 +260,46 @@
       <view class="t-mini mt-8" wx:if="{{hintNote}}">{{hintNote}}</view>
     </view>
 
+    <!-- 成长：不是仓库文件列表，是「你最近在更新与提升的地方」 -->
     <view class="section">
-      <text class="section-title">个人简历</text>
-      <text class="section-more">原文进保险箱</text>
+      <text class="section-title">你在更新与提升的地方</text>
+      <text class="section-more">来自 Obsidian 的复盘与决策笔记</text>
     </view>
     <view class="card">
-      <view class="t-mini">把简历交给执笔，它抹掉手机号、证件号、门牌这类信息后入库；敏感片段加密单独存放，读原文需要你亲手签授权。</view>
+      <view class="t-mini">这里不列文件名。它读的是你笔记里的复盘、教训、决策，按方向聚起来，看你这段时间真正在改什么。</view>
       <view class="row wrap gap-8 mt-16">
-        <button class="btn btn-ghost btn-sm" bindtap="pickResumeFile">从聊天选文件（txt / md）</button>
-        <button class="btn btn-primary btn-sm" bindtap="submitResume" disabled="{{resumeBusy}}">{{resumeBusy ? '脱敏入库中…' : '存这份简历'}}</button>
+        <button class="btn btn-primary btn-sm" bindtap="loadGrowth" disabled="{{growthBusy}}">{{growthBusy ? '读着…' : (growthLoaded ? '刷新' : '看看我在提升什么')}}</button>
+        <button class="btn btn-ghost btn-sm" bindtap="exportObsidian" disabled="{{busy}}" wx:if="{{growthLoaded}}">导出整库</button>
       </view>
-      <view class="mt-16">
-        <textarea class="input" value="{{resumeText}}" bindinput="onResumeText"
-                  placeholder="也可以直接把简历内容粘贴到这里" maxlength="20000" auto-height />
-      </view>
-      <view class="row wrap gap-8 mt-16" wx:if="{{resumeHits.length}}">
-        <text wx:for="{{resumeHits}}" wx:key="*this" class="tag tag-amber">{{item}} 已抹掉</text>
-      </view>
-      <view class="t-mini mt-8" wx:if="{{resumeInfo}}">{{resumeInfo}}</view>
+      <view class="t-mini mt-8" wx:if="{{growthInfo}}">{{growthInfo}}</view>
+
+      <block wx:if="{{growthLoaded && growth}}">
+        <block wx:if="{{growth.themes.length}}">
+          <view class="divider"></view>
+          <view wx:for="{{growth.themes}}" wx:key="id" class="growth-row">
+            <view class="row between">
+              <text class="t-body">{{item.name}}</text>
+              <text class="t-mini">{{item.count}} 篇{{item.whenText ? ' · 最近 ' + item.whenText : ''}}</text>
+            </view>
+            <view class="t-mini mt-8" wx:if="{{item.latest}}">最近一篇《{{item.latest.title}}》：{{item.latest.insight}}</view>
+          </view>
+        </block>
+        <view class="t-mini mt-16" wx:else>{{growth.note || '还没读到成长类的笔记。'}}</view>
+
+        <!-- 顺着最近的主题给输入：书 / 可看的 / 一句摘述 -->
+        <block wx:if="{{growthPicks.length}}">
+          <view class="divider"></view>
+          <view class="t-sub">顺着你最近在想的事</view>
+          <view wx:for="{{growthPicks}}" wx:key="topicId" class="pick-row">
+            <view class="t-mini">{{item.topic}} · 因为{{item.matched.length ? '你写过「' + item.matched[0] + '」' : '这是你最近的方向'}}</view>
+            <view class="t-body mt-8">{{item.book.title}}<text class="t-mini"> · {{item.book.author}}</text></view>
+            <view class="t-mini mt-8">{{item.book.note}}</view>
+            <view class="t-mini mt-8" wx:if="{{item.watch}}">可看：{{item.watch.title}}（{{item.watch.by}}）</view>
+            <view class="t-mini mt-8" wx:if="{{item.line}}">「{{item.line.text}}」——{{item.line.from}}</view>
+          </view>
+          <view class="t-mini mt-8">读书和片子都是公开来源，没有返佣、不卖课。不喜欢就跳过，它不会追着你推。</view>
+        </block>
+      </block>
     </view>
 
     <view class="section">
@@ -229,29 +322,6 @@
     </view>
 
     <view class="section">
-      <text class="section-title">Obsidian 笔记</text>
-      <text class="section-more">经验与决策沉淀的地方</text>
-    </view>
-    <view class="card">
-      <view class="t-mini">你在 Obsidian 里写的决策笔记，会经 git 同步到这边参与执笔的判断。这里可以翻看，也可以整库导出带走。</view>
-      <view class="row wrap gap-8 mt-16">
-        <button class="btn btn-primary btn-sm" bindtap="openObsidian" disabled="{{busy}}">{{obsidianLoaded ? '刷新列表' : '查看我的笔记'}}</button>
-        <button class="btn btn-ghost btn-sm" bindtap="exportObsidian" disabled="{{busy}}" wx:if="{{obsidianLoaded}}">导出整库到剪贴板</button>
-      </view>
-      <view class="t-mini mt-8" wx:if="{{obsidianLoaded}}">共 {{obsidianCount}} 篇{{obsidianTruncated ? '（导出只含最近一部分）' : ''}} · 点标题展开正文</view>
-      <view class="t-mini mt-8" wx:if="{{obsidianInfo}}">{{obsidianInfo}}</view>
-      <view class="obs-list mt-8" wx:if="{{obsidianNotes.length}}">
-        <view wx:for="{{obsidianNotes}}" wx:key="path" class="obs-item">
-          <view class="row between" bindtap="toggleNote" data-path="{{item.path}}">
-            <text class="t-body grow">{{item.title}}</text>
-            <text class="t-mini">{{item.sizeText}}{{item.when ? ' · ' + item.when : ''}}</text>
-          </view>
-          <view wx:if="{{expandedNote === item.path}}" class="prompt-box mt-8">{{noteContent}}</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="section">
       <text class="section-title">我的 Prompt</text>
     </view>
     <view class="card">
@@ -263,37 +333,6 @@
       </view>
       <view class="t-mini mt-8" wx:if="{{exportInfo}}">{{exportInfo}}</view>
       <view class="prompt-box mt-16" wx:if="{{promptText}}">{{promptText}}</view>
-    </view>
-
-    <view class="section">
-      <text class="section-title">授权记录</text>
-      <text class="section-more">谁能读你的原文</text>
-    </view>
-    <view class="card" wx:if="{{grants.length}}">
-      <view wx:for="{{grants}}" wx:key="id" class="{{item.rowCls}}">
-        <view class="grow">
-          <view class="t-body">{{item.scopeText}}</view>
-          <view class="t-mini mt-8">{{item.purpose}} · {{item.stateText}}</view>
-        </view>
-        <button class="btn btn-ghost btn-sm" wx:if="{{!item.revoked}}" bindtap="revoke" data-id="{{item.id}}">撤销</button>
-      </view>
-    </view>
-    <view class="card" wx:else>
-      <view class="t-mini">还没有授权发生。每次有人（包括执笔自己）要读你的原文，都会先在这里签一张有用途、有期限、有次数的授权。</view>
-    </view>
-
-    <view class="section">
-      <text class="section-title">数据账本</text>
-      <text class="section-more">只追加，不改写</text>
-    </view>
-    <view class="card" wx:if="{{audits.length}}">
-      <view wx:for="{{audits}}" wx:key="id" class="grant-row">
-        <text class="t-mini">{{item.time}}</text>
-        <text class="t-mini grow">{{item.text}}</text>
-      </view>
-    </view>
-    <view class="card" wx:else>
-      <view class="t-mini">暂无动账记录。</view>
     </view>
 
     <view class="section">

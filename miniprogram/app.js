@@ -1,5 +1,6 @@
 // 起居注 · 小程序入口
 const api = require('./utils/api')
+const track = require('./utils/track')
 
 App({
   globalData: {
@@ -19,6 +20,12 @@ App({
 
     // 记录用户最近一次意图，用于首页「继续上次」
     this.globalData.lastIntent = wx.getStorageSync('lastIntent') || ''
+  },
+
+  // 切后台时把攒下的行为一次性交上去（不占用前台时间）
+  onHide() {
+    track.pageOut()
+    track.flush(true)
   },
 
   setApiBase(base) {

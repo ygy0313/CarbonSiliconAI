@@ -1,6 +1,7 @@
 const app = getApp()
 const api = require('../../utils/api')
 const mock = require('../../utils/mock')
+const track = require('../../utils/track')
 
 const TAGS = ['胃不舒服', '一个人', '和朋友', '和家人', '熬夜', '上火', '没胃口', '用药', '睡眠', '体重', '运动']
 
@@ -27,6 +28,15 @@ Page({
     photoPath: '',
     recording: false,
     recLabel: '按住说话',
+  },
+
+  onShow() {
+    track.pageIn('记录')
+  },
+
+  onHide() {
+    track.pageOut()
+    track.flush(true)
   },
 
   onLoad() {

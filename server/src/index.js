@@ -49,6 +49,9 @@ const legalPage = require('./services/legal.page')
 const visionService = require('./services/vision.service')
 const asrService = require('./services/asr.service')
 const agendaService = require('./services/agenda.service')
+const docparse = require('./services/docparse.service')
+const behaviorService = require('./services/behavior.service')
+const growthDomain = require('./domain/growth')
 const { seedDemo } = require('./seed')
 
 validate()
@@ -361,25 +364,45 @@ const routes = [
       return { date: date || agendaService.todayKey(), count: episodes.length, episodes }
     },
   },
-  // ── 简历：原文进保险箱，主库只留脱敏版 ──
+  // ── 简历：支持 docx/pdf/txt/md 上传或直接粘贴；原文进保险箱，主库只留脱敏版 ──
   {
     method: 'POST',
     pattern: /^\/api\/persons\/([\w-]+)\/resume$/,
-    bodyLimit: 256 * 1024,
+    bodyLimit: 6 * 1024 * 1024, // base64 上浮 33%，4MB 文件约 5.4MB
     handler: async ({ params, body }) => {
       requirePerson(params[0])
-      const text = requireString(body.text, 'text', 20000)
+
+      // 两条路：file.base64（选文件上传）或 text（直接粘贴）
+      let text = ''
+      let parsed = null
+      if (body.file && body.file.base64) {
+        const buf = Buffer.from(String(body.file.base64), 'base64')
+        try {
+          parsed = docparse.parseResume(buf, String(body.file.name || ''))
+        } catch (err) {
+          // 解析类错误是用户可纠正的，直接 400 带人话，别落到 500
+          throw new ValidationError(err.message)
+        }
+        text = parsed.text
+      } else {
+        text = String(body.text || '').trim()
+        if (text.length < 20) throw new ValidationError('简历内容太短，粘贴全文或换个文件更好')
+        if (text.length > docparse.MAX_TEXT) text = text.slice(0, docparse.MAX_TEXT)
+      }
+
       // 复用记录流水线：脱敏 → 原文加密 → 落 episode → 顺手抽事实（城市等）
       const extracted = await extract({ text: `【简历】${text}`, tags: ['简历'] })
       const { episode, factChanges } = recordEpisode(repos, params[0], extracted, 'resume')
       const silicon = compileSilicon(repos, params[0])
       return {
         episode: { id: episode.id, summary: episode.summary, tags: episode.tags },
+        file: parsed ? { format: parsed.format, chars: parsed.chars, truncated: parsed.truncated } : null,
         factChanges,
         redaction: episode.redaction || { hits: [], sealed: !!episode.rawCipher },
         completeness: silicon.completeness,
         notice:
-          '简历原文已抹掉手机号、证件号、门牌这类信息再入库，敏感片段加密单独存放，读它需要你亲手签授权。',
+          (parsed && parsed.notice ? parsed.notice + '；' : '') +
+          '简历原文已抹掉手机号、证件号、门牌这类信息再入库，敏感片段加密单独存放，读它需要你亲手签授权。文件本身不落盘。',
       }
     },
   },
@@ -686,6 +709,66 @@ const routes = [
         throw new ValidationError('没有配置 Obsidian 库路径（OBSIDIAN_VAULT_PATH）')
       }
       return obsidianService.exportNotes(config.obsidian.vaultPath)
+    },
+  },
+  // ── 成长条目：你在更新与提升的地方（不是文件列表）──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/growth$/,
+    handler: async ({ req, params }) => {
+      requirePerson(params[0])
+      requireGrant(req, params[0], 'vault', { route: 'GET /growth' })
+      const g = obsidianService.growth(config.obsidian.vaultPath)
+      // 推荐不依赖 vault：没有笔记也能按「灵光一现」给方向
+      const texts = (g.recent || []).map(r => `${r.title} ${r.insight}`)
+      const tags = (g.themes || []).map(t => t.name)
+      return { ...g, picks: growthDomain.recommend(texts, tags) }
+    },
+  },
+  // ── 灵光一现：写进档案 + 按主题给可执行的输入 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/spark$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const text = requireString(body.text, 'text', 800)
+      const tags = Array.isArray(body.tags) ? body.tags.slice(0, 6) : []
+      const extracted = await extract({ text, tags: ['灵光一现'].concat(tags) })
+      const { episode } = recordEpisode(repos, params[0], extracted, 'spark')
+      const picks = growthDomain.recommend([text], extracted.tags)
+      // 顺手记一条行为（灵光一现是「主动输入」的强信号）
+      behaviorService.record(repos, params[0], [{ kind: 'import', name: '灵光一现', detail: (extracted.tags || []).join(',') }])
+      return {
+        episode: { id: episode.id, summary: episode.summary, tags: episode.tags },
+        picks,
+        notice: '已记入档案（原文脱敏、加密另存）。下面这些是顺着这条线可以看的，不是作业。',
+      }
+    },
+  },
+  // ── 行为采集：只记动作，不记正文 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/behaviors$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      return behaviorService.record(repos, params[0], body.items)
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/behaviors\/summary$/,
+    handler: async ({ params, query }) => {
+      requirePerson(params[0])
+      const days = Number(query.get('days') || 30)
+      return behaviorService.summary(repos, params[0], { days })
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/behaviors\/clear$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      return behaviorService.clear(repos, params[0])
     },
   },
 

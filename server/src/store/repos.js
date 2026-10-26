@@ -23,6 +23,7 @@ function createRepos(dataDir) {
   const criteria = store.collection('criteria')
   // 日程：用户认下的事。与记忆分开 —— 记忆是发生过，日程是还没发生。
   const agenda = store.collection('agenda')
+  const behaviors = store.collection('behaviors')
 
   return {
     store,
@@ -184,6 +185,23 @@ function createRepos(dataDir) {
       update: (id, patch) => agenda.update(id, patch),
       remove: id => agenda.remove(id),
       countAll: () => agenda.all().length,
+    },
+
+    // ── 行为：小程序里的用法痕迹（翻页/点击/换一条/跳过/授权开关）──
+    // 只记「哪个功能、什么动作、什么时候、花了多久」，不记内容原文 ——
+    // 灵光一现与记录的正文走 episode（脱敏），这里只做习惯画像。
+    behavior: {
+      byPerson: personId => behaviors.find(b => b.personId === personId),
+      insert: doc => behaviors.insert({
+        id: newId('bh'),
+        at: new Date().toISOString(),
+        ...doc,
+      }),
+      clear: personId => {
+        const rows = behaviors.find(b => b.personId === personId)
+        for (const r of rows) behaviors.remove(r.id)
+        return rows.length
+      },
     },
 
     newId,

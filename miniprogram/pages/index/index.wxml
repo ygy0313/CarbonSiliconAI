@@ -160,37 +160,32 @@
     </view>
   </view>
 
-  <!-- ══ ③ 动 · 动一动：今天动了多少 + 离目标还差多少 ══ -->
+  <!-- ══ ③ 动 · 动一动：只报今天消耗与缺口，动作偏好在档案里选 ══ -->
   <view class="mod-head">
     <view class="mod-icon">动</view>
     <text class="mod-title">动一动</text>
-    <text class="mod-meta">按今天的状态挑的</text>
+    <text class="mod-meta" bindtap="goMine">{{moveLike || '去档案选个动作 ›'}}</text>
   </view>
-  <view class="card" wx:if="{{move}}">
-    <view class="rec-top">
-      <text class="rec-title">{{move.title}}</text>
-      <text class="rec-kcal" wx:if="{{move.kcal}}">{{move.kcal}} kcal / 30 分钟</text>
-    </view>
-    <view class="rec-desc">{{move.desc}}</view>
-    <view class="rec-why" wx:for="{{move.why}}" wx:key="*this">· {{item}}</view>
-    <view class="rec-actions" wx:if="{{moveCount > 1}}">
-      <text class="rec-btn" data-kind="move" bindtap="nextRec">换一项</text>
-    </view>
+  <view class="card">
+    <block wx:if="{{werun}}">
+      <view class="move-big">
+        <text class="move-num">{{werun.kcal}}</text>
+        <text class="move-unit">kcal 今天已消耗</text>
+      </view>
+      <view class="t-mini">约 {{werun.step}} 步（取整到百位）。{{werunNote}}</view>
+      <view class="t-mini mt-8" wx:if="{{moveGapText}}">{{moveGapText}}</view>
+      <view class="t-mini mt-8" wx:else>在「我的 · 档案」设个每日消耗目标，这里帮你盯着缺口。</view>
+    </block>
+    <block wx:else>
+      <view class="t-mini">微信运动还没授权或暂无数据。授权后这里自动显示今天的量，并自动记入档案——不用再点按钮。</view>
+      <view class="rec-actions">
+        <text class="rec-btn rec-btn-main" bindtap="goMine">去「授权」打开微信运动</text>
+      </view>
+    </block>
 
     <view class="divider"></view>
-    <block wx:if="{{werun}}">
-      <view class="row between">
-        <text class="t-body">今天已经走了约 {{werun.step}} 步</text>
-        <text class="rec-kcal">≈ {{werun.kcal}} kcal</text>
-      </view>
-      <view class="t-mini mt-8" wx:if="{{moveGapText}}">{{moveGapText}}</view>
-      <view class="t-mini mt-8" wx:else>在「我的 · 档案 · 健康」设个每日消耗目标，这里帮你盯着缺口。</view>
-      <view class="t-mini mt-8" wx:if="{{werunNote}}">{{werunNote}}</view>
-    </block>
-    <view class="t-mini" wx:else>微信运动还没授权或暂无数据。授权后这里自动显示今天的量，并自动记入档案。</view>
-  </view>
-  <view class="card" wx:else>
-    <view class="t-mini">拿不到运动建议。允许定位、或直接说「今天想出汗」。</view>
+    <view class="t-mini" wx:if="{{moveLike}}">你选的动作是「{{moveLike}}」。要换，去「我的 · 档案 · 动起来想做什么」。</view>
+    <view class="t-mini" wx:else>还没选运动偏好。以前这里硬推「快走 30 分钟」，现在改成你自己定 —— 去「我的 · 档案」挑一个。</view>
   </view>
 
   <!-- ══ ④ 梦 · 灵光一现：梦 / idea / 金句 / 单词 / link ══ -->
@@ -206,7 +201,7 @@
       <text class="rec-btn rec-btn-main" bindtap="exploreCreate">{{dreamBusy ? '记着…' : '探索&创造'}}</text>
       <text class="rec-btn" bindtap="breakThrough">破个局</text>
     </view>
-    <view class="t-mini">「探索&创造」：像战友一样接着聊、一起打磨；「破个局」：拆一拆 —— 梦拆意象与情绪，想法拆出下一步。只给方向，不作吉凶预示。</view>
+    <view class="t-mini">「探索&创造」：记进档案，并顺着这条线给一本书、一部片、一句话；「破个局」：拆一拆 —— 梦拆意象与情绪，想法拆出下一步。只给方向，不作吉凶预示。</view>
 
     <block wx:if="{{dream}}">
       <view class="divider"></view>
@@ -217,6 +212,19 @@
       <view class="t-mini mt-8" wx:if="{{dream.tone && dream.tone !== '未说明'}}">情绪基调：{{dream.tone}}</view>
       <view class="t-mini mt-8" wx:if="{{dream.prior}}">这个意象你以前梦到过 {{dream.prior}} 次 —— 我只记频率，不解释含义。</view>
       <view class="t-mini mt-8" wx:if="{{!dream.motifs.length}}">意象没认出来，原文已经存好。换个说法再说一遍，能拆得更细。</view>
+    </block>
+
+    <block wx:if="{{sparkPicks.length}}">
+      <view class="divider"></view>
+      <view class="t-sub">顺着这条线，你可以看看</view>
+      <view wx:for="{{sparkPicks}}" wx:key="topicId" class="spark-row">
+        <view class="t-mini">{{item.topic}}</view>
+        <view class="t-body mt-8">{{item.book.title}}<text class="t-mini"> · {{item.book.author}}</text></view>
+        <view class="t-mini mt-8">{{item.book.note}}</view>
+        <view class="t-mini mt-8" wx:if="{{item.watch}}">可看：{{item.watch.title}}</view>
+        <view class="t-mini mt-8" wx:if="{{item.line}}">「{{item.line.text}}」——{{item.line.from}}</view>
+      </view>
+      <view class="t-mini mt-8">公开来源，不卖课、没有返佣。不喜欢就跳过。</view>
     </block>
   </view>
 

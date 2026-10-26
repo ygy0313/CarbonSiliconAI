@@ -11,6 +11,7 @@
 
 const app = getApp()
 const api = require('../../utils/api')
+const track = require('../../utils/track')
 
 // 十二时辰选择器：value 为该时辰的起时（0-23），「不知道」不录时辰
 const HOUR_OPTIONS = [
@@ -54,11 +55,68 @@ const FALLBACK_DIMS = [
 
 const SEGS = [
   { key: 'file', label: '档案' },
-  { key: 'body', label: '健康' },
+  { key: 'auth', label: '授权' },
   { key: 'data', label: '数据' },
 ]
 
 const GROUP_ORDER = ['饮食', '社交', '生活', '健康', '自我']
+
+// 档案里的运动偏好候选：点一下就写进 health.moveLike，首页「动」模块按这个说话。
+// kcal 按 30 分钟中等强度估，只作量级参考，不承诺精确消耗。
+const MOVE_LIKES = [
+  { name: '快走 30 分钟', kcal: 130 },
+  { name: '慢跑 30 分钟', kcal: 300 },
+  { name: '游泳 30 分钟', kcal: 280 },
+  { name: '骑行 30 分钟', kcal: 240 },
+  { name: '力量训练 30 分钟', kcal: 200 },
+  { name: '拉伸 / 瑜伽 30 分钟', kcal: 100 },
+  { name: '跳绳 15 分钟', kcal: 180 },
+  { name: '爬楼 / 爬坡 20 分钟', kcal: 220 },
+]
+
+// 授权页的唯一数据源清单：一处看全「谁在拿我的数据、给没给」。
+// kind: scope = 微信权限（可用 wx.authorize / openSetting 管）
+//       api   = 没有 scope，靠调用时弹窗（微信运动）
+//       server= 服务端能力，用户管不了，只能告知
+//       none  = 平台不开放，明确说不接入
+const AUTH_ITEMS = [
+  {
+    key: 'werun', name: '微信运动（步数）', kind: 'api', scope: null,
+    desc: '读今天走了多少步。拿到即自动记入档案，不用再点按钮。',
+  },
+  {
+    key: 'location', name: '位置', kind: 'scope', scope: 'scope.userLocation',
+    desc: '按所在城市推荐吃什么、动什么。不给也能用，退回档案里的城市。',
+  },
+  {
+    key: 'record', name: '麦克风', kind: 'scope', scope: 'scope.record',
+    desc: '说一句话转成文字。录完即弃，音频不落盘、不进档案。',
+  },
+  {
+    key: 'camera', name: '相机 / 相册', kind: 'scope', scope: 'scope.camera',
+    desc: '拍一张照认识这盘菜。照片只在识别时用一下，不保存。',
+  },
+  {
+    key: 'calendar', name: '写入手机日历', kind: 'api', scope: null,
+    desc: '把一条日程写进系统日历。只能写，读不到你已有的日历（系统不开放）。',
+  },
+  {
+    key: 'behavior', name: '站内行为痕迹', kind: 'local', scope: null,
+    desc: '记你在小程序里点了什么、翻了哪些页，用来决定首页先给你看什么。只记动作，不记内容。',
+  },
+  {
+    key: 'vault', name: 'Obsidian 仓库', kind: 'server', scope: null,
+    desc: '服务端读你的笔记参与判断。笔记不在手机上，也不经过小程序。',
+  },
+  {
+    key: 'llm', name: '大模型', kind: 'server', scope: null,
+    desc: '没配模型时全部走规则，照常出结果，不报错。',
+  },
+  {
+    key: 'health', name: 'iPhone「健康」库', kind: 'none', scope: null,
+    desc: '不接入：小程序拿不到健康库的用药、睡眠、体重数据，这是系统限制。',
+  },
+]
 
 Page({
   data: {
@@ -82,23 +140,31 @@ Page({
     saving: false,
     chart: null,
     chartBars: [],
-    // ── 健康（只展示授权情况与脱敏摘要；手工记录统一在「记录」页）──
+    // ── 健康（只留今日运动量摘要；手工记录统一在「记录」页）──
     weun: null,
     weunBusy: false,
+    // ── 运动偏好（档案里选，首页按这个说）──
+    moveLikes: MOVE_LIKES,
+    moveLike: '',
+    // ── 授权：一处看全所有数据来源 ──
+    authItems: [],
+    authBusy: false,
+    authNote: '',
+    // ── 行为痕迹画像 ──
+    habit: null,
+    habitLoading: false,
     // ── 理解你（带匹配度）/ 记忆 ──
     hints: [],
     hintNote: '',
     recent: [],
     // ── 经验资产摘要（后台数据，只看总数与方向）──
     assetsStats: null,
-    // ── Obsidian 查看 / 导出 ──
-    obsidianLoaded: false,
-    obsidianCount: 0,
-    obsidianNotes: [],
-    obsidianInfo: '',
-    obsidianTruncated: false,
-    expandedNote: '',
-    noteContent: '',
+    // ── 成长条目：你在更新与提升的地方（来自 Obsidian，不是文件列表）──
+    growth: null,
+    growthLoaded: false,
+    growthBusy: false,
+    growthPicks: [],
+    growthInfo: '',
     // ── 简历 ──
     resumeText: '',
     resumeBusy: false,
@@ -121,10 +187,17 @@ Page({
   },
 
   onShow() {
+    track.pageIn('我的')
     // onLoad 已经全部拉过一次，这里只刷新会随记录变化的部分
     if (!this._inited) return
     this.loadMine()
     this.loadFacts()
+    this.refreshAuth()
+  },
+
+  onHide() {
+    track.pageOut()
+    track.flush(true)
   },
 
   onPullDownRefresh() {
@@ -132,13 +205,19 @@ Page({
   },
 
   async refreshAll() {
-    await Promise.all([this.reload(), this.loadMine(), this.loadFacts()])
+    await Promise.all([this.reload(), this.loadMine(), this.loadFacts(), this.refreshAuth()])
   },
 
   switchSeg(e) {
     const seg = e.currentTarget.dataset.seg
     if (!seg || seg === this.data.seg) return
     this.setData({ seg })
+    // 切到哪段就刷哪段：授权状态会随系统设置变，成长条目会随笔记变
+    if (seg === 'auth') {
+      this.refreshAuth()
+      this.loadHabit()
+    }
+    if (seg === 'data' && !this.data.growthLoaded) this.loadGrowth()
   },
 
   // ── 头卡 + 理解你 + 最近记忆 + 八字回填 ──
@@ -274,8 +353,19 @@ Page({
       })),
       filledCount,
       dimTotal: dims.length,
+      moveLike: byKey['health.moveLike'] ? String(byKey['health.moveLike'].value) : '',
       completenessPct: silicon ? Math.round((silicon.completeness || 0) * 100) + '' : this.data.completenessPct,
     })
+  },
+
+  // 运动偏好：点一下写进档案，首页「动」模块按这个说话（不再由首页硬推「快走 30 分钟」）
+  async pickMoveLike(e) {
+    const name = e.currentTarget.dataset.name
+    if (!name) return
+    const value = this.data.moveLike === name ? '' : name
+    this.setData({ moveLike: value })
+    track.tap('设置运动偏好', name)
+    await this.saveFact('health.moveLike', value || '未设置')
   },
 
   async dimensions() {
@@ -427,7 +517,9 @@ Page({
     const login = () => new Promise((resolve, reject) => wx.login({ success: r => resolve(r.code), fail: reject }))
     const getRun = () => new Promise((resolve, reject) => wx.getWeRunData({ success: resolve, fail: reject }))
     Promise.all([login(), getRun()])
-      .then(([code, run]) => api.weRun({ code, encryptedData: run.encryptedData, iv: run.iv }))
+      // 不用 ([code, run]) 参数解构：SWC 会注入 @swc/runtime/_sliced_to_array，
+      // 那个 runtime 不进包，页面一加载就 module not defined
+      .then(pair => api.weRun({ code: pair[0], encryptedData: pair[1].encryptedData, iv: pair[1].iv }))
       .then(r => {
         if (!r || r.engine !== 'model') {
           wx.showToast({ title: (r && r.reason) || '拿不到步数', icon: 'none' })
@@ -463,54 +555,181 @@ Page({
     wx.switchTab({ url: '/pages/record/record' })
   },
 
-  // ── Obsidian：查看 / 导出（读笔记需 scope=vault 票据，与检索同一道门）──
-  async openObsidian() {
-    this.setData({ busy: true, obsidianInfo: '' })
-    try {
-      if (!this.tokenFor('vault')) await this.signTicket(['vault'], '查看我的 Obsidian 笔记')
-      const r = await api.obsidianNotes(app.globalData.personId, this.tokenFor('vault'))
-      this.setData({
-        obsidianLoaded: true,
-        obsidianCount: r.count,
-        obsidianNotes: (r.notes || []).slice(0, 50).map(n => ({
-          ...n,
-          when: n.mtime ? this.fmt(n.mtime) : '',
-          sizeText: n.bytes > 1024 ? `${Math.round(n.bytes / 1024)} KB` : `${n.bytes} B`,
-        })),
+  // ══ 授权：一处看全所有数据来源，能开的开，能关的关 ══
+  //
+  // 三条诚实边界（页面上也写着）：
+  //   1) 小程序不能主动撤销微信权限，只能引你去系统设置 —— 「关闭」= 打开设置页
+  //   2) 微信运动没有 scope，状态只能靠「有没有成功读到过」判断
+  //   3) 服务端能力（Obsidian / 大模型）用户管不了，这里只告知，不做假开关
+  refreshAuth() {
+    return new Promise(resolve => {
+      wx.getSetting({
+        success: res => {
+          const setting = res.authSetting || {}
+          const trackOn = !wx.getStorageSync('trackOff')
+          const items = AUTH_ITEMS.map(it => {
+            let state = 'none' // none / granted / denied / ask / on / off / unavailable / server
+            let actionText = ''
+            if (it.kind === 'scope') {
+              if (setting[it.scope] === true) { state = 'granted'; actionText = '已授权' }
+              else if (setting[it.scope] === false) { state = 'denied'; actionText = '已拒绝 · 去设置' }
+              else { state = 'ask'; actionText = '去授权' }
+            } else if (it.kind === 'api') {
+              if (it.key === 'werun') {
+                state = this.data.weun ? 'granted' : 'ask'
+                actionText = this.data.weun ? '已读到' : '去授权'
+              } else {
+                state = 'ask'
+                actionText = '用时会问'
+              }
+            } else if (it.kind === 'local') {
+              state = trackOn ? 'on' : 'off'
+              actionText = trackOn ? '开着 · 点此关闭' : '已关闭 · 点此打开'
+            } else if (it.kind === 'server') {
+              state = 'server'
+              actionText = '服务端配置'
+            } else {
+              state = 'unavailable'
+              actionText = '平台不开放'
+            }
+            return { ...it, state, actionText, on: state === 'granted' || state === 'on' }
+          })
+          this.setData({ authItems: items })
+          resolve(items)
+        },
+        fail: () => {
+          this.setData({ authItems: AUTH_ITEMS.map(it => ({ ...it, state: 'none', actionText: '', on: false })) })
+          resolve([])
+        },
       })
-    } catch (e) {
-      wx.showToast({ title: e.message || '读取失败', icon: 'none' })
-    } finally {
-      this.setData({ busy: false })
+    })
+  },
+
+  // 点一行：按来源类型分别处理
+  tapAuth(e) {
+    const key = e.currentTarget.dataset.key
+    const item = (this.data.authItems || []).find(x => x.key === key)
+    if (!item) return
+    track.auth(item.name, item.state !== 'granted')
+    if (item.kind === 'local') return this.toggleBehavior()
+    if (item.kind === 'server' || item.kind === 'none') {
+      wx.showToast({ title: item.desc, icon: 'none', duration: 2600 })
+      return
+    }
+    if (item.kind === 'scope') {
+      if (item.state === 'granted' || item.state === 'denied') return this.openAuthSetting()
+      return this.authorizeScope(item.scope)
+    }
+    // api：微信运动才能真的去要，日程写入是调用时弹窗
+    if (key === 'werun') {
+      this.setData({ seg: 'auth' })
+      return this.readWeRun()
+    }
+    wx.showToast({ title: item.desc, icon: 'none' })
+  },
+
+  authorizeScope(scope) {
+    wx.authorize({
+      scope,
+      success: () => {
+        wx.showToast({ title: '已授权', icon: 'success' })
+        this.refreshAuth()
+      },
+      fail: () => {
+        wx.showModal({
+          title: '没给权限',
+          content: '可以在系统设置里改。不给也能用，只是对应功能会退化。',
+          confirmText: '去设置',
+          success: r => { if (r.confirm) this.openAuthSetting() },
+        })
+      },
+    })
+  },
+
+  openAuthSetting() {
+    wx.openSetting({ success: () => this.refreshAuth() })
+  },
+
+  // 一次把能要的都要了：逐个 scope 串行，用户看到的是连续几个系统弹窗
+  authorizeAll() {
+    const pending = (this.data.authItems || []).filter(x => x.kind === 'scope' && x.state === 'ask')
+    if (!pending.length) {
+      wx.showToast({ title: '能给的都给了，剩下的在系统设置里', icon: 'none' })
+      return this.openAuthSetting()
+    }
+    this.setData({ authBusy: true, authNote: `正在请求 ${pending.length} 项权限…` })
+    const next = i => {
+      if (i >= pending.length) {
+        this.setData({ authBusy: false, authNote: '请求完了。拒绝的可以随时去设置里改。' })
+        return this.refreshAuth()
+      }
+      wx.authorize({
+        scope: pending[i].scope,
+        success: () => next(i + 1),
+        fail: () => next(i + 1),
+      })
+    }
+    next(0)
+  },
+
+  toggleBehavior() {
+    const on = wx.getStorageSync('trackOff')
+    track.setEnabled(!on)
+    wx.showToast({ title: on ? '已打开行为记录' : '已关闭，不再记任何动作', icon: 'none' })
+    this.refreshAuth()
+  },
+
+  async loadHabit() {
+    this.setData({ habitLoading: true })
+    try {
+      const h = await api.behaviorSummary(app.globalData.personId, 30)
+      this.setData({ habit: h, habitLoading: false })
+    } catch (_) {
+      this.setData({ habit: null, habitLoading: false })
     }
   },
 
-  // 展开一篇：只取该篇内容 —— 复用导出接口太重，这里用检索接口的单篇能力没有，
-  // 直接前端从导出接口按需取会全量拉，所以展开走「导出后本地找」的缓存策略：
-  // 第一次展开时拉一次全量导出，之后都在本地翻。
-  async toggleNote(e) {
-    const p = e.currentTarget.dataset.path
-    if (this.data.expandedNote === p) {
-      this.setData({ expandedNote: '', noteContent: '' })
-      return
-    }
-    this.setData({ busy: true })
+  clearHabit() {
+    wx.showModal({
+      title: '清空行为痕迹',
+      content: '会删掉这 30 天的翻页与点击记录，档案里的内容不受影响。',
+      success: async r => {
+        if (!r.confirm) return
+        try {
+          await api.clearBehaviors(app.globalData.personId)
+          wx.showToast({ title: '已清空', icon: 'success' })
+          this.loadHabit()
+        } catch (e) {
+          wx.showToast({ title: e.message || '清空失败', icon: 'none' })
+        }
+      },
+    })
+  },
+
+  // ══ 成长：你在更新与提升的地方（来自 Obsidian，不是文件列表）══
+  async loadGrowth() {
+    this.setData({ growthBusy: true, growthInfo: '' })
     try {
-      if (!this._vaultDump) {
-        if (!this.tokenFor('vault')) await this.signTicket(['vault'], '查看我的 Obsidian 笔记')
-        const dump = await api.obsidianExport(app.globalData.personId, this.tokenFor('vault'))
-        this._vaultDump = {}
-        for (const n of dump.notes || []) this._vaultDump[n.path] = n.content
-        this.setData({ obsidianTruncated: !!dump.truncated })
-      }
+      if (!this.tokenFor('vault')) await this.signTicket(['vault'], '查看我的成长条目')
+      const r = await api.getGrowth(app.globalData.personId, this.tokenFor('vault'))
       this.setData({
-        expandedNote: p,
-        noteContent: (this._vaultDump[p] || '（这篇没读到，可能在库外或太大）').slice(0, 4000),
+        growthLoaded: true,
+        growth: {
+          configured: r.configured !== false,
+          themes: (r.themes || []).map(t => ({
+            ...t,
+            whenText: t.lastAt ? this.fmt(t.lastAt) : '',
+          })),
+          recent: (r.recent || []).map(n => ({ ...n, whenText: n.when ? this.fmt(n.when) : '' })),
+          note: r.note || '',
+          scanned: r.scanned || 0,
+        },
+        growthPicks: r.picks || [],
       })
-    } catch (err) {
-      wx.showToast({ title: err.message || '读取失败', icon: 'none' })
+    } catch (e) {
+      this.setData({ growthLoaded: false, growthInfo: e.message || '读不到成长条目' })
     } finally {
-      this.setData({ busy: false })
+      this.setData({ growthBusy: false })
     }
   },
 
@@ -524,7 +743,7 @@ Page({
       wx.setClipboardData({
         data: text,
         success: () => this.setData({
-          obsidianInfo: `已复制 ${dump.count} 篇笔记（${(text.length / 1024).toFixed(0)} KB）到剪贴板，可粘贴进任何笔记工具`,
+          growthInfo: `已复制 ${dump.count} 篇笔记（${(text.length / 1024).toFixed(0)} KB）到剪贴板，可粘贴进任何笔记工具`,
         }),
       })
     } catch (e) {
@@ -544,24 +763,61 @@ Page({
     wx.chooseMessageFile({
       count: 1,
       type: 'file',
-      extension: ['txt', 'md'],
+      extension: ['docx', 'pdf', 'txt', 'md'],
       success(res) {
         const file = res.tempFiles && res.tempFiles[0]
         if (!file) return
-        if (file.size > 200 * 1024) {
-          wx.showToast({ title: '文件太大（上限 200KB），粘贴文本也行', icon: 'none' })
+        const name = (file.name || '').toLowerCase()
+        const ext = name.split('.').pop()
+        if (ext === 'doc') {
+          wx.showToast({ title: '旧版 .doc 解析不了，另存为 .docx 再传', icon: 'none', duration: 2600 })
+          return
+        }
+        if (file.size > 4 * 1024 * 1024) {
+          wx.showToast({ title: '文件太大（上限 4MB）', icon: 'none' })
           return
         }
         const fs = wx.getFileSystemManager && wx.getFileSystemManager()
         if (!fs || !fs.readFile) {
-          wx.showToast({ title: '这台设备读不了文件，直接粘贴文本吧', icon: 'none' })
+          wx.showToast({ title: '这台设备读不了文件，直接粘贴吧', icon: 'none' })
           return
         }
+        // txt / md 本地就能读，先读进输入框，让用户确认一眼
+        if (ext === 'txt' || ext === 'md') {
+          fs.readFile({
+            filePath: file.path,
+            encoding: 'utf8',
+            success: r => that.setData({
+              resumeText: String(r.data || '').slice(0, 20000),
+              resumeInfo: '已读入，确认后再点「存这份简历」',
+            }),
+            fail: () => wx.showToast({ title: '文件读不出来，直接粘贴吧', icon: 'none' }),
+          })
+          return
+        }
+        // docx / pdf：读成 base64 交给服务端解析（文件不落盘，解析完即弃）
+        that.setData({ resumeBusy: true, resumeInfo: '正在解析文件…' })
         fs.readFile({
           filePath: file.path,
-          encoding: 'utf8',
-          success: r => that.setData({ resumeText: String(r.data || '').slice(0, 20000) }),
-          fail: () => wx.showToast({ title: '文件读不出来，直接粘贴文本吧', icon: 'none' }),
+          encoding: 'base64',
+          success: async r => {
+            try {
+              const out = await api.resumeFile(app.globalData.personId, {
+                name: file.name,
+                base64: String(r.data || ''),
+              })
+              that.setData({
+                resumeBusy: false,
+                resumeHits: ((out.redaction && out.redaction.hits) || []).map(h => `${h.label} ×${h.count}`),
+                resumeInfo: (out.file ? `${out.file.format} 解析出 ${out.file.chars} 字 · ` : '') + (out.notice || '已入库'),
+              })
+              wx.showToast({ title: '简历已记入', icon: 'success' })
+              app.loadSilicon(true)
+            } catch (e2) {
+              that.setData({ resumeBusy: false, resumeInfo: e2.message || '解析失败' })
+            }
+          },
+          fail: () => that.setData({ resumeBusy: false, resumeInfo: '文件读不出来' }),
         })
       },
       fail(e) {

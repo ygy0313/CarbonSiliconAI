@@ -1,5 +1,6 @@
 const app = getApp()
 const api = require('../../utils/api')
+const track = require('../../utils/track')
 
 // 首页 = 一天里真正会碰到的四件事：运（五行 + 日程展示）、味（吃+饮 揉在一卡）、
 // 动（今天消耗了多少 + 离目标还差多少）、灵光一现（梦 / idea / 金句 / link）。
@@ -30,8 +31,10 @@ function currentSlot(d = new Date()) {
 const SLOT_TEXT = { breakfast: '早餐', lunch: '午餐', tea: '茶歇', dinner: '晚餐', late: '夜宵' }
 
 // 与服务端同一套问法口径；时段由 slot 显式传给后端，不靠猜关键词
+// 注意：文案里要带「吃」这类关键词 —— 服务端意图识别是关键词加权，
+// 换成「按我的口味推荐一下」会判成「还没听懂」，首页食饮就空了
 const ASK = {
-  meal: '按我的口味推荐一下',
+  meal: '今天吃点什么，按我的口味来',
   move: '今天想运动一下，出出汗',
   wine: '今晚喝点什么好',
 }
@@ -76,10 +79,9 @@ Page({
     brewIdx: 1,
     brewCount: 0,
     wine: null,
-    // ③ 动
-    move: null,
-    moveIdx: 1,
-    moveCount: 0,
+    // ③ 动：只报今天消耗与缺口；动作偏好由「我的 · 档案」决定，首页不再替你安排
+    moveLike: '',
+    moveLikeKcal: 0,
     // ③ 动：微信运动（脱敏）+ 目标缺口
     werun: null,
     werunNote: '',
@@ -90,6 +92,7 @@ Page({
     dreamText: '',
     dream: null,
     dreamBusy: false,
+    sparkPicks: [],
     // 底部：按日翻记录
     recDate: '',
     recDateLabel: '今天',
@@ -115,8 +118,14 @@ Page({
   },
 
   onShow() {
+    track.pageIn('首页')
     this.load()
     this.checkLegal()
+  },
+
+  onHide() {
+    track.pageOut()
+    track.flush(true)
   },
 
   onPullDownRefresh() {
@@ -197,8 +206,12 @@ Page({
     const serviceCount = (meta && meta.services && meta.services.length) || 9
     const completeness = silicon.completeness || 0
 
-    // 运动目标：档案里的「每日运动消耗目标」，没设就提示去档案
+    // 运动目标与偏好：都在「我的 · 档案」里设，首页只负责报数
     const goalKcal = Number(factMap['health.moveGoalKcal'] && factMap['health.moveGoalKcal'].value) || 0
+    const moveLikeFact = factMap['health.moveLike']
+    const moveLike = moveLikeFact && moveLikeFact.value && moveLikeFact.value !== '未设置'
+      ? String(moveLikeFact.value)
+      : ''
 
     this.setData({
       loading: false,
@@ -215,6 +228,7 @@ Page({
       serviceCount,
       mode: this.resolveMode(completeness),
       moveGoal: goalKcal,
+      moveLike,
       slotText: SLOT_TEXT[currentSlot()],
     })
 
@@ -228,7 +242,6 @@ Page({
       this.loadGanzhi(),
       this.loadAgenda(),
       this.loadFood(geo),
-      this.loadRec('move', ASK.move, geo),
       this.loadWeRun(),
       this.loadDayRecords(''),
     ])
@@ -317,8 +330,15 @@ Page({
       wx.showToast({ title: '这台微信不支持写日历', icon: 'none' })
       return
     }
-    const [y, m, d] = todayKey().split('-').map(Number)
-    const [hh, mm] = (item.time && /^\d{2}:\d{2}$/.test(item.time) ? item.time : '09:00').split(':').map(Number)
+    // 不用数组解构：开发者工具的 SWC 会把它编成 @swc/runtime/_sliced_to_array，
+    // 那个 runtime 目录不进包，页面一加载就报 module not defined
+    const ymd = todayKey().split('-')
+    const y = Number(ymd[0])
+    const m = Number(ymd[1])
+    const d = Number(ymd[2])
+    const hm = (item.time && /^\d{2}:\d{2}$/.test(item.time) ? item.time : '09:00').split(':')
+    const hh = Number(hm[0])
+    const mm = Number(hm[1])
     wx.addPhoneCalendar({
       title: item.title,
       startTime: Math.floor(new Date(y, m - 1, d, hh, mm).getTime() / 1000),
@@ -332,32 +352,22 @@ Page({
   async loadFood(geo) {
     const slot = currentSlot()
     try {
-      const r = await api.orchestrate(app.globalData.personId, ASK.meal, [], { geo, remember: false, slot })
-      const cands = ((r && r.cards) || []).filter(c => String(c.id || '').indexOf('meal_') === 0)
-        .map(c => ({
-          id: c.id,
-          title: c.title,
-          desc: c.desc,
-          why: (c.why || []).slice(0, 2),
-          kcal: (c.meta && c.meta.kcal) || null,
-          keyword: (c.meta && c.meta.searchKeyword) || c.title,
-        }))
-      const brews = ((r && r.cards) || []).filter(c => String(c.id || '').indexOf('brew_') === 0)
-        .map(c => ({
-          id: c.id,
-          title: c.title,
-          desc: c.desc,
-          why: (c.why || []).slice(0, 2),
-        }))
-      this._meals = cands
-      this._brews = brews
+      let r = await api.orchestrate(app.globalData.personId, ASK.meal, [], { geo, remember: false, slot })
+      let cands = this.pickFoodCards(r)
+      // 兜底：万一意图识别没命中，用最短的一句话再要一次，首页不能空着让人再点一次
+      if (!cands.meals.length && !cands.brews.length) {
+        r = await api.orchestrate(app.globalData.personId, '吃点什么', [], { geo, remember: false, slot })
+        cands = this.pickFoodCards(r)
+      }
+      this._meals = cands.meals
+      this._brews = cands.brews
       this.setData({
-        meal: cands[0] || null,
+        meal: cands.meals[0] || null,
         mealIdx: 1,
-        mealCount: cands.length,
-        brew: brews[0] || null,
+        mealCount: cands.meals.length,
+        brew: cands.brews[0] || null,
         brewIdx: 1,
-        brewCount: brews.length,
+        brewCount: cands.brews.length,
         recCity: (r && r.geoCity) || (geo ? '当前位置' : this.data.city || ''),
         recNote: geo ? '按当前位置' : '按档案城市 · 允许定位会更准',
       })
@@ -369,35 +379,33 @@ Page({
     }
   },
 
-  // ── ③ 动：一次编排拿回 3 个候选，「换一项」本地轮换 ──
-  async loadRec(kind, text, geo) {
-    try {
-      // 首页推荐是「算给你看的」，不是「你说的话」，所以 remember:false 不写进记忆
-      const r = await api.orchestrate(app.globalData.personId, text, [], { geo, remember: false })
-      const prefix = kind === 'meal' ? 'meal_' : 'move_'
-      const cands = ((r && r.cards) || [])
-        .filter(c => String(c.id || '').indexOf(prefix) === 0)
-        .map(c => ({
-          id: c.id,
-          title: c.title,
-          desc: c.desc,
-          why: (c.why || []).slice(0, 2),
-          kcal: (c.meta && (c.meta.kcal || c.meta.kcal30)) || null,
-          keyword: (c.meta && c.meta.searchKeyword) || c.title,
-        }))
-      if (!cands.length) {
-        this.setData({ [kind]: null, [kind + 'Count']: 0 })
-        return
-      }
-      this['_' + kind + 's'] = cands
-      this.setData({ [kind]: cands[0], [kind + 'Idx']: 1, [kind + 'Count']: cands.length })
-    } catch (_) {
-      this.setData({ [kind]: null, [kind + 'Count']: 0 })
-    }
+  // 把编排结果拆成「吃」和「饮」两组候选
+  pickFoodCards(r) {
+    const cards = (r && r.cards) || []
+    const meals = cards
+      .filter(c => String(c.id || '').indexOf('meal_') === 0)
+      .map(c => ({
+        id: c.id,
+        title: c.title,
+        desc: c.desc,
+        why: (c.why || []).slice(0, 2),
+        kcal: (c.meta && c.meta.kcal) || null,
+        keyword: (c.meta && c.meta.searchKeyword) || c.title,
+      }))
+    const brews = cards
+      .filter(c => String(c.id || '').indexOf('brew_') === 0)
+      .map(c => ({
+        id: c.id,
+        title: c.title,
+        desc: c.desc,
+        why: (c.why || []).slice(0, 2),
+      }))
+    return { meals, brews }
   },
 
   nextRec(e) {
     const kind = e.currentTarget.dataset.kind
+    track.tap('换一条', kind)
     const list = this['_' + kind + 's'] || []
     if (list.length < 2) {
       wx.showToast({ title: '就这一条合适，不用换', icon: 'none' })
@@ -511,7 +519,7 @@ Page({
     this.setData({ dreamText: e.detail.value })
   },
 
-  // 「探索&创造」：像战友一样把这条想法接住 —— 自动记入档案，再带去跟执笔聊
+  // 「探索&创造」：写进档案，同时按主题给出可以看的书/片/一句 —— 服务「自我数字决策 agent」
   async exploreCreate() {
     const text = (this.data.dreamText || '').trim()
     if (!text) {
@@ -521,10 +529,15 @@ Page({
     if (!app.guardLegal()) return this.reopenLegal()
     this.setData({ dreamBusy: true })
     try {
-      await api.record(app.globalData.personId, text, ['灵光一现'])
+      const r = await api.spark(app.globalData.personId, text)
+      this.setData({
+        dreamText: '',
+        dream: null,
+        sparkPicks: r.picks || [],
+        dreamBusy: false,
+      })
       app.loadSilicon(true)
-      wx.navigateTo({ url: '/pages/chat/chat?text=' + encodeURIComponent(`帮我一起琢磨这个想法：${text}`) })
-      this.setData({ dreamText: '', dreamBusy: false })
+      wx.showToast({ title: '已记入档案', icon: 'success' })
     } catch (e) {
       this.setData({ dreamBusy: false })
       wx.showToast({ title: e.message || '没记上，稍后再试', icon: 'none' })
@@ -620,6 +633,7 @@ Page({
     const kw = e.currentTarget.dataset.kw || ''
     const appName = e.currentTarget.dataset.app || '点评'
     if (!kw) return
+    track.accept('复制菜名去搜', kw)
     wx.setClipboardData({
       data: kw,
       success: () => wx.showToast({ title: `已复制，去${appName}粘贴搜索`, icon: 'none' }),

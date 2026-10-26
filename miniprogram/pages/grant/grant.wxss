@@ -376,3 +376,40 @@
   border-bottom: 1rpx dashed var(--line);
 }
 .obs-item:last-child { border-bottom: none; }
+
+/* 授权行：点一下就是开关，所以整行给按压反馈 */
+.auth-row {
+  padding: 18rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.auth-row:last-child { border-bottom: none; }
+.auth-row:active { opacity: 0.6; }
+
+/* 运动偏好 chip：选中用主色描边，不加填充，保持纸白底 */
+.chip {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8rpx;
+  padding: 14rpx 22rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 100rpx;
+  background: var(--surface);
+}
+.chip-on {
+  border-color: var(--green);
+  background: rgba(0, 112, 74, 0.06);
+}
+.chip-sub { font-size: 20rpx; color: var(--text-3); }
+
+/* 成长条目 */
+.growth-row {
+  padding: 16rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.growth-row:last-child { border-bottom: none; }
+.pick-row {
+  padding: 16rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.pick-row:last-child { border-bottom: none; }

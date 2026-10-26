@@ -126,9 +126,13 @@ function main() {
   ok('健康段不再有手工录入', typeof mineAssets.saveHealth === 'undefined' && typeof mineAssets.pickHealthType === 'undefined' && typeof mineAssets.saveSteps === 'undefined' && typeof mineAssets.goRecordHealth === 'undefined')
   ok('健康段保留微信运动读取与自动落档', typeof mineAssets.readWeRun === 'function' && typeof mineAssets.autoRecordSteps === 'function')
   ok('八字改动自动生成（无重新生成按钮）', typeof mineAssets.autoBazi === 'function' && typeof mineAssets.saveBazi === 'function')
-  ok('三段已改为 档案·健康·数据',
-    mineAssets.data.segs.map(s => s.label).join(',') === '档案,健康,数据',
+  ok('三段已改为 档案·授权·数据',
+    mineAssets.data.segs.map(s => s.label).join(',') === '档案,授权,数据',
     mineAssets.data.segs.map(s => s.label).join(','))
+  ok('授权页集中列出全部数据来源', Array.isArray(mineAssets.data.authItems) || /AUTH_ITEMS/.test(fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')))
+  ok('授权页有一键授权与去设置', typeof mineAssets.authorizeAll === 'function' && typeof mineAssets.openAuthSetting === 'function')
+  ok('授权页可关可清行为痕迹', typeof mineAssets.toggleBehavior === 'function' && typeof mineAssets.clearHabit === 'function')
+  ok('档案页可设运动偏好', typeof mineAssets.pickMoveLike === 'function' && Array.isArray(mineAssets.data.moveLikes))
 
   console.log('\n【6】记录页：拍照与语音入口')
   const record = loadPage('pages/record/record.js')
@@ -179,7 +183,7 @@ function main() {
   idx.toggleMode()
   ok('切换按钮能在两套视角间来回', idx.data.mode === 'old')
   ok('首页不再直接显示真名（默认昵称占位）', idx.data.name === '' || idx.data.name === '给自己起个昵称' || idx.data.hasNickname === false)
-  ok('首页有推荐区与五行区的方法', typeof idx.loadRec === 'function' && typeof idx.loadGanzhi === 'function')
+  ok('首页有食饮与五行区的方法', typeof idx.loadFood === 'function' && typeof idx.loadGanzhi === 'function')
 
   const quiz = loadPage('pages/quiz/quiz.js')
   ok('问答页有 pick / load', typeof quiz.pick === 'function' && typeof quiz.load === 'function')
@@ -228,8 +232,10 @@ function main() {
   ok('生辰排在档案段最前（在完整度卡之前）', mineWxml.indexOf('section-title">生辰') !== -1 && mineWxml.indexOf('section-title">生辰') < mineWxml.indexOf('它对你的把握'))
   ok('经验卡紧跟生辰（在其后、完整度之前）', mineWxml.indexOf('section-title">经验') > mineWxml.indexOf('section-title">生辰') && mineWxml.indexOf('section-title">经验') < mineWxml.indexOf('它对你的把握'))
   ok('数据段不再有旧经验资产卡', !mineWxml.includes('section-title">经验资产'))
-  ok('Obsidian 查看 / 展开导出三件套', typeof mine.openObsidian === 'function' && typeof mine.toggleNote === 'function' && typeof mine.exportObsidian === 'function')
-  ok('Obsidian 卡在 WXML 里', mineWxml.includes('openObsidian') && mineWxml.includes('exportObsidian'))
+  ok('成长条目：读取 + 整库导出', typeof mine.loadGrowth === 'function' && typeof mine.exportObsidian === 'function')
+  ok('成长卡在 WXML 里（不再列文件名）', mineWxml.includes('loadGrowth') && mineWxml.includes('growth.themes'))
+  ok('Obsidian 文件列表已下线', !mineWxml.includes('obsidianNotes') && typeof mine.openObsidian === 'undefined')
+  ok('授权记录与数据账本已从界面删除', !mineWxml.includes('数据账本') && !mineWxml.includes('授权记录'))
   ok('健康维度进了兜底（目标 kcal / 运动喜好）', (() => {
     const src = fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')
     return src.includes('health.moveGoalKcal') && src.includes('health.moveLike')
@@ -255,7 +261,8 @@ function main() {
   ok('自动记录：步数拿到即落档（无「记入档案」按钮）', idxSrcLater('autoRecordSteps') && !idxWxml2.includes('recordSteps'))
   ok('点昵称跳「我的」', idxWxml2.includes('bindtap="goMine"'))
   ok('共享输入能力在 utils/capture.js', fs.existsSync(path.join(MP, 'utils/capture.js')))
-  ok('首页按模块取数据', ['loadGanzhi', 'loadFood', 'loadRec', 'loadWine', 'loadAgenda', 'breakThrough', 'loadWeRun', 'loadDayRecords', 'autoRecordSteps'].every(k => typeof idx[k] === 'function'))
+  ok('首页按模块取数据', ['loadGanzhi', 'loadFood', 'loadWine', 'loadAgenda', 'breakThrough', 'loadWeRun', 'loadDayRecords', 'autoRecordSteps', 'exploreCreate'].every(k => typeof idx[k] === 'function'))
+  ok('动的推荐卡已移出首页（改由档案设定偏好）', typeof idx.loadRec === 'undefined')
   ok('吃与饮与动可以本地换一条', typeof idx.nextRec === 'function')
   ok('旧的内联记一笔已删除（与记录页重复）', !idxSrcLater('saveTaste') && !idxSrcLater('pickTastePhoto'))
   ok('记录页有照片回显与丢弃', (() => {
@@ -266,6 +273,21 @@ function main() {
     const src = fs.readFileSync(path.join(MP, 'pages/record/record.js'), 'utf8')
     return ['用药', '睡眠', '体重', '运动'].every(t => src.includes(`'${t}'`))
   })())
+
+  console.log('\n【12】编译兼容性：不许用数组解构')
+  // 开发者工具的 SWC 会把 `const [a, b] = x` 编成 @swc/runtime/_sliced_to_array，
+  // 而那个 runtime 目录不进包 —— 页面一加载就 module not defined。这条坑踩过两次，钉死。
+  const jsAll = []
+  ;(function walk(dir) {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name === 'node_modules' || ent.name.startsWith('.')) continue
+      const full = path.join(dir, ent.name)
+      if (ent.isDirectory()) walk(full)
+      else if (ent.name.endsWith('.js') && !full.includes('scripts/')) jsAll.push(full)
+    }
+  })(MP)
+  const desugar = jsAll.filter(f => /(const|let|var)\s*\[[^\]]*,[^\]]*\]\s*=|\(\s*\[[^\]]*,[^\]]*\]\s*\)\s*=>/.test(fs.readFileSync(f, 'utf8')))
+  ok('没有数组解构（会触发 SWC runtime 缺失）', desugar.length === 0, desugar.map(f => path.relative(MP, f)).join(', '))
 
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {

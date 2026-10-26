@@ -216,6 +216,50 @@ async function main() {
   const vaultList = await call(`/api/persons/${PERSON}/obsidian/notes`, 'GET', null, { 'X-Grant-Token': grantRes.body.data.token })
   assert(vaultList.status === 400, '库路径没配时给明确报错（票据已通过）', vaultList.body.error.code)
 
+  // ── 简历：文本 / 文件（txt 走同一解析器）/ 旧 doc 拒绝 ──
+  const resumeTxt = await call(`/api/persons/${PERSON}/resume`, 'POST', {
+    file: { name: 'cv.txt', base64: Buffer.from('杨光宇 技术总监 质量与效能 2011-2025 阿里云 带 30 人团队', 'utf8').toString('base64') },
+  })
+  assert(resumeTxt.status === 200 && resumeTxt.body.data.file && resumeTxt.body.data.file.format === 'txt',
+    '简历：txt 文件解析入库', JSON.stringify(resumeTxt.body.data.file))
+  const resumeDoc = await call(`/api/persons/${PERSON}/resume`, 'POST', {
+    file: { name: 'cv.doc', base64: Buffer.from('whatever').toString('base64') },
+  })
+  assert(resumeDoc.status === 400 && /docx|PDF/.test(resumeDoc.body.error.message || ''), '简历：旧 .doc 给明确提示', resumeDoc.body.error.message)
+  const resumeShort = await call(`/api/persons/${PERSON}/resume`, 'POST', { text: '太短' })
+  assert(resumeShort.status === 400, '简历：过短文本被拒')
+
+  // ── 灵光一现：入档 + 按主题给输入 ──
+  const spark = await call(`/api/persons/${PERSON}/spark`, 'POST', { text: '最近在纠结要不要接一个管理岗，怕离开一线太久' })
+  assert(spark.status === 200 && spark.body.data.episode.id, '灵光一现入档')
+  assert((spark.body.data.picks || []).length >= 1, '灵光一现给出可看的输入', JSON.stringify((spark.body.data.picks || []).map(p => p.topic)))
+  const sparkPick = (spark.body.data.picks || [])[0] || {}
+  assert(!!(sparkPick.book && sparkPick.book.title), '推荐带书名（可溯源）')
+
+  // ── 行为：只记动作，不记正文；可清空 ──
+  const beh0 = await call(`/api/persons/${PERSON}/behaviors/summary`)
+  assert(beh0.status === 200 && Array.isArray(beh0.body.data.top), '行为画像可读')
+  const behAdd = await call(`/api/persons/${PERSON}/behaviors`, 'POST', {
+    items: [
+      { kind: 'page', name: '首页', durationMs: 4200 },
+      { kind: 'tap', name: '换一条', detail: 'meal' },
+      { kind: 'bogus', name: '不该进来' },
+    ],
+  })
+  assert(behAdd.body.data.accepted === 2, '非法类型被过滤（只收 2 条）', String(behAdd.body.data.accepted))
+  const beh1 = await call(`/api/persons/${PERSON}/behaviors/summary`)
+  assert(beh1.body.data.total >= 2 && beh1.body.data.top[0].name, '行为画像有统计', JSON.stringify(beh1.body.data.top[0]))
+  assert(/读不到/.test(beh1.body.data.boundary || ''), '画像里写明采不到别的 App')
+  const behClear = await call(`/api/persons/${PERSON}/behaviors/clear`, 'POST', {})
+  assert(behClear.body.data.removed >= 2, '行为痕迹可一键清空', String(behClear.body.data.removed))
+
+  // ── 成长：需要 vault 票据；没配库时给可读状态而不是 500 ──
+  const growthNoToken = await call(`/api/persons/${PERSON}/growth`)
+  assert(growthNoToken.status === 401, '成长条目无票据被拦', String(growthNoToken.status))
+  const growth = await call(`/api/persons/${PERSON}/growth`, 'GET', null, { 'X-Grant-Token': grantRes.body.data.token })
+  assert(growth.status === 200, '成长条目不因库未配置而报错', String(growth.status))
+  assert(Array.isArray(growth.body.data.themes), '成长条目返回主题数组')
+
   // ── 清理 ──
   await call('/api/dev/reset', 'POST', {})
 

@@ -397,3 +397,25 @@
   color: var(--text-3);
   padding: 12rpx 0;
 }
+
+/* ── 动模块：一个大数字报今天的量 ─────────────────── */
+.move-big {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 12rpx;
+}
+.move-num {
+  font-size: 64rpx;
+  font-weight: 600;
+  color: var(--green);
+  line-height: 1.1;
+}
+.move-unit { font-size: 22rpx; color: var(--text-3); }
+
+/* ── 灵光一现：顺着主题给的输入 ─────────────────────── */
+.spark-row {
+  padding: 14rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.spark-row:last-child { border-bottom: none; }
