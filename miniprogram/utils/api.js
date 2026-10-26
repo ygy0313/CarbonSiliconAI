@@ -3,7 +3,7 @@
 
 const TIMEOUT = 8000
 
-let BASE = 'http://8.136.205.105:8787' // app.js onLaunch 会立即覆盖为实际配置
+let BASE = 'https://qijuzhu.lygenery.de5.net' // app.js onLaunch 会立即覆盖为实际配置
 
 function setBase(base) {
   BASE = String(base || '').replace(/\/$/, '')
