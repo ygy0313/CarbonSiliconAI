@@ -18,7 +18,7 @@
       <view class="id-sub" wx:if="{{hasNickname}}">{{identity}}</view>
       <view class="id-sub" wx:else>昵称只存在这台手机上 · 点这里设置</view>
     </view>
-    <view class="id-right" wx:if="{{mode === 'old'}}" bindtap="goProfile">
+    <view class="id-right" wx:if="{{mode === 'old'}}" bindtap="goMine">
       <text class="id-pct">{{completenessPct}}%</text>
       <text class="id-pct-label">档案</text>
     </view>
@@ -29,42 +29,12 @@
 
   <view class="t-mini mt-8" wx:if="{{offline}}">离线演示数据 · 后端未连接</view>
 
-  <!-- ── 第一个模块：今日五行（公共历法信息，只谈节奏，不作预测）── -->
-  <view class="section">
-    <text class="section-title">今日五行</text>
-    <text class="section-more" wx:if="{{termText}}">{{termText}}</text>
-  </view>
-  <view class="card gz-card" wx:if="{{gz}}">
-    <view class="gz-pillars">
-      <view wx:for="{{pillars}}" wx:key="label" class="gz-pillar">
-        <text class="gz-pillar-label">{{item.label}}</text>
-        <text class="gz-pillar-text">{{item.text}}</text>
-        <text class="gz-pillar-el">{{item.el}}</text>
-      </view>
-    </view>
-
-    <view class="gz-bars">
-      <view wx:for="{{elementBars}}" wx:key="el" class="gz-bar-row">
-        <text class="gz-bar-el">{{item.el}}</text>
-        <view class="gz-bar-track">
-          <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
-        </view>
-        <text class="gz-bar-pct">{{item.pct}}%</text>
-      </view>
-    </view>
-
-    <view class="gz-note">{{elementNote}}</view>
-    <view class="gz-disclaim">干支与五行是公共历法信息，只作为节奏参考，不作吉凶、财运、健康方面的断言。</view>
-  </view>
-  <view class="card" wx:else>
-    <view class="t-mini">拿不到今日干支。检查服务地址后在「档案」页重试。</view>
-  </view>
-
-  <!-- ── 新人引导：三步把档案立起来 ── -->
+  <!-- 新人引导：三步把档案立起来 -->
   <block wx:if="{{mode === 'new'}}">
-    <view class="section">
-      <text class="section-title">先做三件事</text>
-      <text class="section-more" bindtap="toggleMode">切到老用户 →</text>
+    <view class="mod-head">
+      <view class="mod-icon">启</view>
+      <text class="mod-title">先做三件事</text>
+      <text class="mod-meta" bindtap="toggleMode">切到老用户 →</text>
     </view>
     <view class="card onboard">
       <view class="step {{ackDone ? 'done' : ''}}" bindtap="reopenLegal">
@@ -95,52 +65,155 @@
     </view>
   </block>
 
-  <!-- ── 现在要做什么：不再是天窗，直接给算好的结果 ── -->
-  <view class="section">
-    <text class="section-title">现在要做什么</text>
-    <text class="section-more" bindtap="goChatEmpty">直接说 →</text>
+  <!-- ══ ① 今日五行 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">历</view>
+    <text class="mod-title">今日五行</text>
+    <text class="mod-meta">{{termText}}</text>
   </view>
-  <view class="rec-head">
-    <text class="rec-city">{{recCity || '按档案城市'}}</text>
-    <text class="rec-note">{{recNote}}</text>
-    <text class="rec-geo" wx:if="{{geoState === 'denied'}}" bindtap="goProfile">开定位 ›</text>
+  <view class="card" wx:if="{{gz}}">
+    <view class="gz-pillars">
+      <view wx:for="{{pillars}}" wx:key="label" class="gz-pillar">
+        <text class="gz-pillar-label">{{item.label}}</text>
+        <text class="gz-pillar-text">{{item.text}}</text>
+        <text class="gz-pillar-el">{{item.el}}</text>
+      </view>
+    </view>
+
+    <view class="gz-bars">
+      <view wx:for="{{elementBars}}" wx:key="el" class="gz-bar-row">
+        <text class="gz-bar-el">{{item.el}}</text>
+        <view class="gz-bar-track">
+          <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
+        </view>
+        <text class="gz-bar-pct">{{item.pct}}%</text>
+      </view>
+    </view>
+
+    <view class="gz-note">{{elementNote}}</view>
+    <view class="gz-disclaim">干支与五行是公共历法信息，只作为节奏参考，不作吉凶、财运、健康方面的断言。</view>
+  </view>
+  <view class="card" wx:else>
+    <view class="t-mini">拿不到今日干支。检查服务地址后在「我的」页重试。</view>
   </view>
 
-  <view class="rec-card" wx:if="{{recFood}}">
+  <!-- ══ ② 今天吃什么 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">食</view>
+    <text class="mod-title">今天吃什么</text>
+    <text class="mod-meta" wx:if="{{geoState === 'denied'}}" bindtap="openSetting">{{recCity}} · 开定位 ›</text>
+    <text class="mod-meta" wx:else>{{recCity}}{{recNote ? ' · ' + recNote : ''}}</text>
+  </view>
+  <view class="card" wx:if="{{meal}}">
     <view class="rec-top">
-      <text class="rec-tag rec-tag-eat">吃</text>
-      <text class="rec-title">{{recFood.title}}</text>
-      <text class="rec-kcal" wx:if="{{recFood.kcal}}">{{recFood.kcal}} kcal</text>
+      <text class="rec-title">{{meal.title}}</text>
+      <text class="rec-kcal" wx:if="{{meal.kcal}}">{{meal.kcal}} kcal</text>
     </view>
-    <view class="rec-desc">{{recFood.desc}}</view>
-    <view class="rec-why" wx:for="{{recFood.why}}" wx:key="*this">· {{item}}</view>
+    <view class="rec-desc">{{meal.desc}}</view>
+    <view class="rec-why" wx:for="{{meal.why}}" wx:key="*this">· {{item}}</view>
     <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" data-kw="{{recFood.keyword}}" data-app="大众点评" bindtap="copyKeyword">去大众点评搜</text>
-      <text class="rec-btn" bindtap="goChat" data-text="中午吃什么，把菜点出来">换个说法</text>
+      <text class="rec-btn rec-btn-main" data-kw="{{meal.keyword}}" data-app="大众点评" bindtap="copyKeyword">去大众点评搜</text>
+      <text class="rec-btn" data-kind="meal" bindtap="nextRec" wx:if="{{mealCount > 1}}">换一道</text>
+      <text class="rec-btn" bindtap="goChatEmpty">说得具体点</text>
+    </view>
+  </view>
+  <view class="card" wx:else>
+    <view class="t-mini">推荐还没算出来。检查服务地址，或直接跟执笔说一句「中午吃什么」。</view>
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" bindtap="openSetting" wx:if="{{geoState === 'denied'}}">允许定位，按附近推荐</text>
+      <text class="rec-btn" bindtap="goChat" data-text="今天中午吃什么">去问执笔</text>
     </view>
   </view>
 
-  <view class="rec-card" wx:if="{{recMove}}">
+  <!-- ══ ③ 动一动 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">动</view>
+    <text class="mod-title">动一动</text>
+    <text class="mod-meta">按今天的状态挑的</text>
+  </view>
+  <view class="card" wx:if="{{move}}">
     <view class="rec-top">
-      <text class="rec-tag rec-tag-move">动</text>
-      <text class="rec-title">{{recMove.title}}</text>
-      <text class="rec-kcal" wx:if="{{recMove.kcal}}">{{recMove.kcal}} kcal</text>
+      <text class="rec-title">{{move.title}}</text>
+      <text class="rec-kcal" wx:if="{{move.kcal}}">{{move.kcal}} kcal / 30 分钟</text>
     </view>
-    <view class="rec-desc">{{recMove.desc}}</view>
-    <view class="rec-why" wx:for="{{recMove.why}}" wx:key="*this">· {{item}}</view>
+    <view class="rec-desc">{{move.desc}}</view>
+    <view class="rec-why" wx:for="{{move.why}}" wx:key="*this">· {{item}}</view>
     <view class="rec-actions">
-      <text class="rec-btn rec-btn-main" data-kw="{{recMove.keyword}}" data-app="Keep" bindtap="copyKeyword">去 Keep 搜跟练</text>
+      <text class="rec-btn rec-btn-main" data-kw="{{move.keyword}}" data-app="Keep" bindtap="copyKeyword">去 Keep 搜跟练</text>
+      <text class="rec-btn" data-kind="move" bindtap="nextRec" wx:if="{{moveCount > 1}}">换一项</text>
       <text class="rec-btn" bindtap="openMyMap">看我的位置</text>
     </view>
   </view>
+  <view class="card" wx:else>
+    <view class="t-mini">拿不到运动建议。允许定位、或直接说「今天想出汗」。</view>
+  </view>
 
-  <view class="rec-empty" wx:if="{{!recFood && !recMove}}">推荐还没算出来。检查服务地址，或直接在下面说一句你的需要。</view>
-
-  <view class="quick-grid mt-16">
-    <view wx:for="{{quick}}" wx:key="key" class="quick" bindtap="goChat" data-text="{{item.text}}">
-      <text class="quick-label">{{item.label}}</text>
-      <text class="quick-arrow">→</text>
+  <!-- ══ ④ 日程 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">程</view>
+    <text class="mod-title">日程</text>
+    <text class="mod-meta" bindtap="goAgenda">全部 ›</text>
+  </view>
+  <view class="card">
+    <view class="ag-head">{{agenda.headline}}</view>
+    <view wx:for="{{agenda.items}}" wx:key="id" class="{{item.cls}}">
+      <text class="ag-time">{{item.time}}</text>
+      <text class="ag-title-text">{{item.title}}</text>
     </view>
+    <view class="t-mini" wx:if="{{agenda.more}}">还有 {{agenda.more}} 件，去日程里看</view>
+    <view class="t-mini" wx:if="{{!agenda.count}}">空着也是信息 —— 这几天没人占用你。</view>
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" bindtap="goAgenda">记一件事</text>
+      <text class="rec-btn" bindtap="goChatEmpty">让执笔帮我排</text>
+    </view>
+  </view>
+
+  <!-- ══ ⑤ 喝点什么 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">饮</view>
+    <text class="mod-title">喝点什么</text>
+    <text class="mod-meta">{{wine ? wine.tier : '九月葡园'}}</text>
+  </view>
+  <view class="card" wx:if="{{wine}}">
+    <view class="rec-top">
+      <text class="rec-title">{{wine.title}}</text>
+    </view>
+    <view class="rec-desc">{{wine.desc}}</view>
+    <view class="rec-why" wx:for="{{wine.why}}" wx:key="*this">· {{item}}</view>
+    <view class="rec-why" wx:if="{{wine.serve}}">· {{wine.serve}}</view>
+    <view class="wine-note">{{wine.priceNote}}</view>
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" data-kw="{{wine.short}}" data-app="淘宝" bindtap="copyKeyword">复制酒名去搜</text>
+      <text class="rec-btn" bindtap="goChat" data-text="今晚喝点什么，配个家常菜">换个场合</text>
+    </view>
+  </view>
+  <view class="card" wx:else>
+    <view class="t-mini">酒库还没接上。可以先跟我说说「今晚喝点什么」。</view>
+  </view>
+
+  <!-- ══ ⑥ 记个梦 ══ -->
+  <view class="mod-head">
+    <view class="mod-icon">梦</view>
+    <text class="mod-title">记个梦</text>
+    <text class="mod-meta">只拆意象，不解梦</text>
+  </view>
+  <view class="card">
+    <textarea class="input dream-input" value="{{dreamText}}" bindinput="onDreamText" placeholder="昨晚梦见什么，几句就够。趁还记得。" maxlength="300" auto-height />
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" bindtap="submitDream">{{dreamBusy ? '拆解中…' : '记下来'}}</text>
+      <text class="rec-btn" bindtap="goChat" data-text="我昨晚做了个梦">去聊这个梦</text>
+    </view>
+
+    <block wx:if="{{dream}}">
+      <view class="divider"></view>
+      <view class="row wrap gap-8" wx:if="{{dream.motifs.length}}">
+        <text wx:for="{{dream.motifs}}" wx:key="*this" class="tag tag-green">{{item}}</text>
+      </view>
+      <view class="t-body mt-16">{{dream.line}}</view>
+      <view class="t-mini mt-8" wx:if="{{dream.tone && dream.tone !== '未说明'}}">情绪基调：{{dream.tone}}</view>
+      <view class="t-mini mt-8" wx:if="{{dream.prior}}">这个意象你以前梦到过 {{dream.prior}} 次 —— 我只记频率，不解释含义。</view>
+      <view class="t-mini mt-8" wx:if="{{!dream.motifs.length}}">意象没认出来，原文已经存好。换个说法再说一遍，能拆得更细。</view>
+    </block>
   </view>
 
   <view class="services-entry" bindtap="goServices" wx:if="{{mode === 'old'}}">

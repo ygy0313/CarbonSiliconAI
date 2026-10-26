@@ -565,7 +565,19 @@ function viewAssets() {
 
 function route() {
   const hash = (location.hash || '#/home').replace('#/', '')
-  return ['home', 'ask', 'assets', 'archive', 'grant'].includes(hash) ? hash : 'home'
+  // 档案与授权已合并成「我的」一页（与小程序同一 IA）。旧链接仍可用，只是落在同一页。
+  if (hash === 'archive' || hash === 'grant') return 'mine'
+  return ['home', 'ask', 'assets', 'mine'].includes(hash) ? hash : 'home'
+}
+
+/** 去掉一段 HTML 的页头 —— 合并两页时只保留一个 masthead */
+function stripHead(html) {
+  return String(html || '').replace(/<header class="masthead">[\s\S]*?<\/header>/, '')
+}
+
+/** 我的：档案（我是谁）+ 授权（数据归谁）合成一页 */
+function viewMine() {
+  return viewArchive() + stripHead(viewGrant())
 }
 
 async function render() {
@@ -578,8 +590,7 @@ async function render() {
   if (tab === 'home') app.innerHTML = viewHome()
   else if (tab === 'ask') app.innerHTML = viewAsk()
   else if (tab === 'assets') app.innerHTML = viewAssets()
-  else if (tab === 'archive') app.innerHTML = viewArchive()
-  else app.innerHTML = viewGrant()
+  else app.innerHTML = viewMine()
 
   if (tab === 'ask') {
     const ta = document.getElementById('ask-input')

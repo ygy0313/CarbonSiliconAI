@@ -10,6 +10,7 @@ Page({
     doneCount: 0,
     altTitle: '',
     offline: false,
+    accepted: false,
   },
 
   onLoad() {
@@ -55,6 +56,7 @@ Page({
         title: card.title,
         desc: card.desc,
         why: card.why || [],
+        date: (card.meta && card.meta.date) || '',
         dateStr: (card.meta && card.meta.dateStr) || '',
         headcount: (card.meta && card.meta.headcount) || 0,
         totalPerPerson: (card.meta && card.meta.totalPerPerson) || 0,
@@ -81,6 +83,10 @@ Page({
       wx.showToast({ title: '离线模式不落库', icon: 'none' })
       return
     }
+    if (this.data.accepted) {
+      wx.showToast({ title: '已经定过了', icon: 'none' })
+      return
+    }
     try {
       const inv = (app.globalData.planResult || {}).invocationId
       const card = app.globalData.planCard
@@ -89,10 +95,33 @@ Page({
         cardId: card ? card.id : 'plan_gather',
         action: 'accept',
       })
-      wx.showToast({ title: '已加入你的计划', icon: 'none' })
+      // 「定下来」要有个落点：写进日程，否则第二天就只剩一句 toast
+      await this.writeToAgenda()
+      this.setData({ accepted: true })
+      wx.showToast({ title: '已定，并记进日程', icon: 'success' })
       app.loadSilicon(true)
     } catch (err) {
       wx.showToast({ title: err.message || '保存失败', icon: 'none' })
+    }
+  },
+
+  async writeToAgenda() {
+    const p = this.data.plan
+    if (!p || !p.date) return
+    // 时间线第一节点通常是「集合」的时刻，拿它当日程时刻；不是 HH:MM 就不填
+    const first = (p.timeline || [])[0]
+    const time = first && /^\d{1,2}:\d{2}$/.test(String(first.time || '')) ? first.time : undefined
+    try {
+      await api.addAgenda(app.globalData.personId, {
+        title: p.title,
+        date: p.date,
+        time,
+        place: (p.headcount ? p.headcount + ' 人' : ''),
+        source: 'plan',
+      })
+    } catch (_) {
+      // 日程没写进去不该让「定下来」这件事失败 —— 反馈已经记下了
+      wx.showToast({ title: '方案已定，但日程没同步上', icon: 'none' })
     }
   },
 

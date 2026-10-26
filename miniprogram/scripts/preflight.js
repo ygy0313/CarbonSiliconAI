@@ -109,8 +109,8 @@ else line('bad', '页面文件缺失', legalMissing.join(', '))
 if (legalInApp) line('ok', '页面已注册进 app.json')
 else line('bad', 'app.json 里没有 pages/legal/legal', '页面存在但打不开')
 
-if (entryCount >= 2) line('ok', `有 ${entryCount} 处入口指向条款页（首页同意层 + 档案页）`)
-else line('warn', `只有 ${entryCount} 处入口`, '建议首页与档案页各留一个，审核员会找')
+if (entryCount >= 2) line('ok', `有 ${entryCount} 处入口指向条款页（首页同意层 + 我的页）`)
+else line('warn', `只有 ${entryCount} 处入口`, '建议首页与「我的」页各留一个，审核员会找')
 
 if (hasAckLayer) line('ok', '首次使用有同意层（未同意不写数据）')
 else line('warn', '没有同意层', '收集个人信息前应先取得同意')

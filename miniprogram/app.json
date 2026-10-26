@@ -1,13 +1,13 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/record/record",
+    "pages/agenda/agenda",
+    "pages/assets/assets",
+    "pages/grant/grant",
     "pages/chat/chat",
     "pages/plan/plan",
-    "pages/record/record",
-    "pages/assets/assets",
-    "pages/profile/profile",
     "pages/services/services",
-    "pages/grant/grant",
     "pages/legal/legal",
     "pages/quiz/quiz"
   ],
@@ -34,12 +34,12 @@
         "text": "记录"
       },
       {
-        "pagePath": "pages/assets/assets",
-        "text": "经验"
+        "pagePath": "pages/agenda/agenda",
+        "text": "日程"
       },
       {
-        "pagePath": "pages/profile/profile",
-        "text": "档案"
+        "pagePath": "pages/assets/assets",
+        "text": "经验"
       },
       {
         "pagePath": "pages/grant/grant",

@@ -48,6 +48,7 @@ const legal = require('./domain/legal')
 const legalPage = require('./services/legal.page')
 const visionService = require('./services/vision.service')
 const asrService = require('./services/asr.service')
+const agendaService = require('./services/agenda.service')
 const { seedDemo } = require('./seed')
 
 validate()
@@ -330,6 +331,51 @@ const routes = [
           extractor: extracted.extractor,
         },
       }
+    },
+  },
+  // ── 日程：用户认下的事（推荐是算的，日程是定的）──
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/agenda$/,
+    handler: async ({ params, query }) => {
+      requirePerson(params[0])
+      const days = Number(query.get('days') || 7)
+      return agendaService.list(repos, params[0], { days })
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/agenda$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const item = agendaService.create(repos, params[0], {
+        date: body.date,
+        time: body.time,
+        title: body.title,
+        place: body.place,
+        source: body.source,
+      })
+      return { item }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/agenda\/([\w-]+)\/done$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const item = agendaService.setDone(repos, params[0], params[1], body.done !== false)
+      if (!item) throw new NotFoundError('找不到这条日程')
+      return { item }
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/agenda\/([\w-]+)\/remove$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      const ok = agendaService.remove(repos, params[0], params[1])
+      if (!ok) throw new NotFoundError('找不到这条日程')
+      return { removed: true }
     },
   },
   {

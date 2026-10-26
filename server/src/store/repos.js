@@ -21,6 +21,8 @@ function createRepos(dataDir) {
   // 经验层：用户「经验资产」的存放处，与事实层分开 —— 事实是 is，经验是 how。
   const experiences = store.collection('experiences')
   const criteria = store.collection('criteria')
+  // 日程：用户认下的事。与记忆分开 —— 记忆是发生过，日程是还没发生。
+  const agenda = store.collection('agenda')
 
   return {
     store,
@@ -163,6 +165,25 @@ function createRepos(dataDir) {
         if (existing) return criteria.update(existing.id, doc)
         return criteria.insert({ id: newId('cr'), personId, ...doc })
       },
+    },
+
+    // ── 日程：某天某一刻要做的一件事 ──
+    // 隔离规则与经验一致：按 id 取时必须带 personId，跨人一律当作不存在。
+    agenda: {
+      byPerson: personId => agenda.find(a => a.personId === personId),
+      get: (personId, id) => {
+        const a = agenda.byId(id)
+        return a && a.personId === personId ? a : null
+      },
+      insert: doc => agenda.insert({
+        id: newId('ag'),
+        createdAt: new Date().toISOString(),
+        done: false,
+        ...doc,
+      }),
+      update: (id, patch) => agenda.update(id, patch),
+      remove: id => agenda.remove(id),
+      countAll: () => agenda.all().length,
     },
 
     newId,

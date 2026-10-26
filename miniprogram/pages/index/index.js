@@ -1,12 +1,9 @@
 const app = getApp()
 const api = require('../../utils/api')
 
-// 前端只做展示，不在 wxml 里做计算（小程序模板不支持数组方法）
-const DIM_ORDER = [
-  'diet.spicy', 'diet.stomach', 'diet.taste', 'diet.avoid',
-  'social.groupSize', 'social.experience', 'social.preference', 'social.role',
-  'life.city', 'life.budget', 'life.rhythm', 'self.identity',
-]
+// 首页 = 一天里真正会碰到的六件事：历（今天什么日子）、食、动、程（要做什么）、饮、梦。
+// 一条原则：每个模块都有内容，而不是一排空按钮 —— 点进去是「换个说法」，
+// 不点也能直接看到今天的样子。所以首页是「结果 + 一个动作」，不是入口列表。
 
 // 五行只谈节奏方向，不谈吉凶 —— 与 fortune.agent 是同一条红线
 // WXSS 不支持中文类名，五行用英文类名上色（el → cls 预计算映射）
@@ -21,6 +18,13 @@ const ELEMENT_NOTE = {
 
 const ELEMENT_LIST = ['木', '火', '土', '金', '水']
 
+// 首页三类推荐的问法：和用户自己说出口的话一样，不用「指令语气」
+const ASK = {
+  meal: '今天中午吃什么，别太辣',
+  move: '今天想运动一下，出出汗',
+  wine: '今晚喝点什么好',
+}
+
 Page({
   data: {
     loading: true,
@@ -31,30 +35,37 @@ Page({
     initial: '',
     city: '',
     identity: '',
-    completeness: 0,
     completenessPct: '0',
-    hints: [],
-    dims: [],
-    filled: 0,
-    total: 12,
-    recent: [],
-    conflicts: 0,
-    // 视角模式：new = 新人引导（可测试重走）；old = 老用户首页。
+    // 视角模式：new = 新人引导（可测试重走）；old = 老用户首页
     mode: 'new',
     ackDone: false,
     quizDone: false,
     quizDonePartially: false,
     quizDoneNum: 0,
     quizTotal: 12,
-    // 今日五行
+    // ① 今日五行
     gz: null,
     pillars: [],
     elementBars: [],
     elementNote: '',
     termText: '',
-    // 今日推荐
-    recFood: null,
-    recMove: null,
+    // ② 今天吃什么
+    meal: null,
+    mealIdx: 1,
+    mealCount: 0,
+    // ③ 动一动
+    move: null,
+    moveIdx: 1,
+    moveCount: 0,
+    // ④ 日程
+    agenda: { items: [], count: 0, headline: '', more: 0 },
+    // ⑤ 喝点什么
+    wine: null,
+    // ⑥ 记个梦
+    dreamText: '',
+    dream: null,
+    dreamBusy: false,
+    // 定位
     recCity: '',
     recNote: '',
     geoState: 'pending',
@@ -66,13 +77,10 @@ Page({
     declined: false,
     legalVersion: '',
     serviceCount: 9,
-    quick: [
-      { key: 'eat', label: '今天吃什么', text: '今天中午吃什么，别太辣' },
-      { key: 'move', label: '动一动', text: '今天想运动一下，出出汗' },
-      { key: 'gather', label: '组个局', text: '周六想和朋友组个局，6个人' },
-      { key: 'drink', label: '喝点什么', text: '今晚喝点什么好' },
-      { key: 'dream', label: '记个梦', text: '昨晚梦见水一直涨，一直在找一扇门' },
-    ],
+  },
+
+  onLoad() {
+    this._inited = true
   },
 
   onShow() {
@@ -80,7 +88,11 @@ Page({
     this.checkLegal()
   },
 
-  // ── 问候开场：按时间段说话 + 今日安排一句话 ──
+  onPullDownRefresh() {
+    this.load().finally(() => wx.stopPullDownRefresh())
+  },
+
+  // ── 问候开场：按时间段说话 ──
   buildGreet() {
     const d = new Date()
     const week = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
@@ -153,6 +165,7 @@ Page({
     wx.navigateTo({ url: '/pages/legal/legal?doc=' + doc })
   },
 
+  // ── 主加载：身份 → 六个模块并行 ──
   async load() {
     this.buildGreet()
     this.setData({ loading: true })
@@ -162,45 +175,44 @@ Page({
     const factMap = {}
     for (const f of silicon.facts || []) factMap[f.key] = f
 
-    const dims = DIM_ORDER.map(key => {
-      const f = factMap[key]
-      const on = !!f && f.confidence >= 0.4
-      const weak = !!f && f.confidence >= 0.25 && f.confidence < 0.4
-      return { key, on, weak, cls: on ? 'on' : weak ? 'weak' : 'off' }
-    })
-    const filled = dims.filter(d => d.on).length
-
     const identityFact = factMap['self.identity']
     // 隐私：首页默认只显示昵称。档案里的真名不上首页，避免随手一瞥就泄露。
     const nickname = wx.getStorageSync('nickname') || ''
     const realName = (silicon.person && silicon.person.name) || '我'
-    const shownName = nickname || '给自己起个昵称'
 
     const meta = app.globalData.meta
     const serviceCount = (meta && meta.services && meta.services.length) || 9
-
     const completeness = silicon.completeness || 0
+
     this.setData({
       loading: false,
       offline,
       nickname,
       hasNickname: !!nickname,
-      name: shownName,
+      name: nickname || '给自己起个昵称',
       initial: nickname ? nickname.slice(0, 1) : (realName || '我').slice(0, 1),
       city: (silicon.person && silicon.person.city) || '',
       identity: nickname
         ? ((identityFact && identityFact.value) || '还没有写下你是谁')
         : '点名字给自己起个昵称，首页就不显示真名',
-      completeness,
       completenessPct: Math.round(completeness * 100) + '',
-      dims,
-      filled,
       serviceCount,
       mode: this.resolveMode(completeness),
     })
+
     this.loadOnboard()
-    this.loadGanzhi()
-    this.loadRecs()
+
+    const geo = await this.getUserLocation()
+    this.setData({ geoState: geo ? 'ok' : 'denied' })
+
+    // 六个模块各拉各的，互不阻塞；任一失败只影响自己那一格
+    await Promise.all([
+      this.loadGanzhi(),
+      this.loadRec('meal', ASK.meal, geo),
+      this.loadRec('move', ASK.move, geo),
+      this.loadWine(),
+      this.loadAgenda(),
+    ])
   },
 
   // 新人三步进度：同意状态 + 问答进度（拿不到就按 0 处理，不挡页面）
@@ -222,7 +234,7 @@ Page({
     }
   },
 
-  // ── 今日五行（公共历法信息，只谈节奏，不作预测）──
+  // ── ① 今日五行（公共历法信息，只谈节奏，不作预测）──
   async loadGanzhi() {
     try {
       const g = await api.getGanzhi(app.globalData.personId)
@@ -235,7 +247,6 @@ Page({
         return {
           el,
           cls: ELEMENT_CLS[el] || 'mu',
-          share,
           pct: Math.round(share * 100) + '',
           w: Math.max(4, Math.round(share * 100)),
         }
@@ -258,7 +269,145 @@ Page({
     }
   },
 
-  // ── 今日安排：定位 → 餐饮 + 运动各一条，卡路里与搜索词都带上 ──
+  // ── ②③ 吃 / 动：一次编排拿回 3 个候选，「换一个」在本地轮换，不重新算 ──
+  async loadRec(kind, text, geo) {
+    try {
+      // 首页推荐是「算给你看的」，不是「你说的话」，所以 remember:false 不写进记忆
+      const r = await api.orchestrate(app.globalData.personId, text, [], { geo, remember: false })
+      const prefix = kind === 'meal' ? 'meal_' : 'move_'
+      const cands = ((r && r.cards) || [])
+        .filter(c => String(c.id || '').indexOf(prefix) === 0)
+        .map(c => ({
+          id: c.id,
+          title: c.title,
+          desc: c.desc,
+          why: (c.why || []).slice(0, 2),
+          kcal: (c.meta && (c.meta.kcal || c.meta.kcal30)) || null,
+          keyword: (c.meta && c.meta.searchKeyword) || c.title,
+        }))
+      if (!cands.length) {
+        this.setData({ [kind]: null, [kind + 'Count']: 0 })
+        return
+      }
+      this['_' + kind + 's'] = cands
+      this.setData({ [kind]: cands[0], [kind + 'Idx']: 1, [kind + 'Count']: cands.length })
+      // 城市口径以服务端定位解析为准：定位成功显示城市名，失败才回退档案城市
+      if (kind === 'meal') {
+        this.setData({
+          recCity: (r && r.geoCity) || (geo ? '当前位置' : this.data.city || ''),
+          recNote: geo ? '按当前位置' : '按档案城市 · 允许定位会更准',
+        })
+      }
+    } catch (_) {
+      this.setData({ [kind]: null, [kind + 'Count']: 0 })
+    }
+  },
+
+  nextRec(e) {
+    const kind = e.currentTarget.dataset.kind
+    const list = this['_' + kind + 's'] || []
+    if (list.length < 2) {
+      wx.showToast({ title: '就这一条合适，不用换', icon: 'none' })
+      return
+    }
+    const idx = (this.data[kind + 'Idx'] % list.length)
+    this.setData({ [kind]: list[idx], [kind + 'Idx']: idx + 1 })
+  },
+
+  // ── ④ 日程：今天要做的事，直接摊在首页 ──
+  async loadAgenda() {
+    try {
+      const r = await api.getAgenda(app.globalData.personId, 7)
+      const items = (r.todayItems || []).slice(0, 3).map(i => ({
+        id: i.id,
+        time: i.time || '待定',
+        title: i.title,
+        done: !!i.done,
+        cls: i.done ? 'ag-line is-done' : 'ag-line',
+      }))
+      const today = (r.counts && r.counts.today) || 0
+      const undone = items.filter(i => !i.done).length
+      this.setData({
+        agenda: {
+          items,
+          count: today,
+          more: Math.max(0, today - items.length),
+          headline: today
+            ? `今天 ${today} 件事${undone ? ' · 还有 ' + undone + ' 件没做' : ' · 都做完了'}`
+            : '今天空着',
+        },
+      })
+    } catch (_) {
+      this.setData({ agenda: { items: [], count: 0, more: 0, headline: '拿不到日程' } })
+    }
+  },
+
+  // ── ⑤ 喝点什么（选酒不报价，只给价位带 + 以店铺为准）──
+  async loadWine() {
+    try {
+      const r = await api.orchestrate(app.globalData.personId, ASK.wine, [], { geo: null, remember: false })
+      const hit = ((r && r.cards) || []).find(c => String(c.id || '').indexOf('wine_') === 0)
+      if (!hit) {
+        this.setData({ wine: null })
+        return
+      }
+      const m = hit.meta || {}
+      this.setData({
+        wine: {
+          id: hit.id,
+          title: hit.title,
+          desc: hit.desc,
+          why: (hit.why || []).slice(0, 2),
+          tier: m.tierLabel || '',
+          serve: m.serve || '',
+          short: m.short || hit.title,
+          shop: (m.shop && m.shop.name) || '九月葡园',
+          priceNote: m.priceNote || '价格以店铺为准',
+        },
+      })
+    } catch (_) {
+      this.setData({ wine: null })
+    }
+  },
+
+  // ── ⑥ 记个梦：只拆意象与情绪，不解梦 ──
+  onDreamText(e) {
+    this.setData({ dreamText: e.detail.value })
+  },
+
+  async submitDream() {
+    const text = (this.data.dreamText || '').trim()
+    if (!text) {
+      wx.showToast({ title: '先写几句梦里的画面', icon: 'none' })
+      return
+    }
+    if (!app.guardLegal()) return this.reopenLegal()
+    this.setData({ dreamBusy: true })
+    try {
+      const r = await api.orchestrate(app.globalData.personId, text, ['梦'], { remember: true })
+      const cards = (r && r.cards) || []
+      const primary = cards.find(c => c.kind === 'primary') || cards[0] || null
+      const m = (primary && primary.meta) || {}
+      this.setData({
+        dream: primary
+          ? {
+            motifs: (m.motifs || []).map(x => x.label).slice(0, 3),
+            tone: m.tone || '',
+            line: primary.desc || '',
+            prior: m.priorCount || 0,
+          }
+          : null,
+        dreamText: '',
+      })
+      app.loadSilicon(true)
+    } catch (e) {
+      wx.showToast({ title: e.message || '没记上，稍后再试', icon: 'none' })
+    } finally {
+      this.setData({ dreamBusy: false })
+    }
+  },
+
+  // ── 定位 ──
   getUserLocation() {
     return new Promise(resolve => {
       const cached = app.globalData.geo
@@ -275,46 +424,12 @@ Page({
     })
   },
 
-  async loadRecs() {
-    const geo = await this.getUserLocation()
-    this.setData({ geoState: geo ? 'ok' : 'denied' })
-
-    // 首页推荐是「算给你看的」，不是「你说的话」，所以 remember:false 不写进记忆
-    const ask = async text => {
-      try {
-        const r = await api.orchestrate(app.globalData.personId, text, [], { geo, remember: false })
-        return r
-      } catch (_) {
-        return null
-      }
-    }
-
-    const [eat, move] = await Promise.all([
-      ask('今天中午吃什么，别太辣'),
-      ask('今天想运动一下，出出汗'),
-    ])
-
-    const pick = (res, prefix) => {
-      const cards = (res && res.cards) || []
-      const hit = cards.find(c => String(c.id || '').indexOf(prefix) === 0)
-      if (!hit) return null
-      return {
-        id: hit.id,
-        title: hit.title,
-        desc: hit.desc,
-        why: (hit.why || []).slice(0, 2),
-        kcal: (hit.meta && hit.meta.kcal) || (hit.meta && hit.meta.kcal30) || null,
-        keyword: (hit.meta && hit.meta.searchKeyword) || hit.title,
-        note: (hit.meta && hit.meta.note) || '',
-      }
-    }
-
-    this.setData({
-      recFood: pick(eat, 'meal_'),
-      recMove: pick(move, 'move_'),
-      // 定位成功显示定位解析的城市；失败才回退档案城市
-      recCity: (eat && eat.geoCity) || (geo ? '当前位置' : this.data.city || ''),
-      recNote: geo ? '按当前位置推荐' : '按档案里的城市推荐 · 允许定位会更准',
+  // 定位被拒时直接跳设置，比让人自己去翻「我的」页快
+  openSetting() {
+    wx.openSetting({
+      success: res => {
+        if (res.authSetting && res.authSetting['scope.userLocation']) this.load()
+      },
     })
   },
 
@@ -331,7 +446,7 @@ Page({
   openMyMap() {
     const geo = app.globalData.geo
     if (!geo) {
-      wx.showToast({ title: '先允许定位才能看位置', icon: 'none' })
+      this.openSetting()
       return
     }
     wx.openLocation({
@@ -343,6 +458,7 @@ Page({
     })
   },
 
+  // ── 跳转 ──
   goQuiz() {
     if (!app.guardLegal()) return this.reopenLegal()
     wx.navigateTo({ url: '/pages/quiz/quiz' })
@@ -364,22 +480,15 @@ Page({
     wx.switchTab({ url: '/pages/record/record' })
   },
 
-  goProfile() {
-    wx.switchTab({ url: '/pages/profile/profile' })
+  goAgenda() {
+    wx.switchTab({ url: '/pages/agenda/agenda' })
+  },
+
+  goMine() {
+    wx.switchTab({ url: '/pages/grant/grant' })
   },
 
   goServices() {
     wx.navigateTo({ url: '/pages/services/services' })
   },
 })
-
-function relTime(ts) {
-  if (!ts) return ''
-  const diff = Date.now() - new Date(ts).getTime()
-  const day = Math.floor(diff / 86400000)
-  if (day <= 0) return '今天'
-  if (day === 1) return '昨天'
-  if (day < 7) return day + ' 天前'
-  if (day < 30) return Math.floor(day / 7) + ' 周前'
-  return Math.floor(day / 30) + ' 个月前'
-}

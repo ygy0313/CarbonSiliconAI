@@ -184,8 +184,8 @@ function main() {
   ok('过短录音被拦下', record.data.hint.includes('太短'), record.data.hint)
 
   console.log('\n【7】法律文本入口')
-  const profile = loadPage('pages/profile/profile.js')
-  ok('档案页有 openDoc', typeof profile.openDoc === 'function')
+  const mineEarly = loadPage('pages/grant/grant.js')
+  ok('我的页有 goLegal（法律文本入口）', typeof mineEarly.goLegal === 'function')
   const indexPage = loadPage('pages/index/index.js')
   ok('首页有同意层状态', indexPage.data.needAck === false)
   ok('首页有 ackLegal / declineLegal', typeof indexPage.ackLegal === 'function' && typeof indexPage.declineLegal === 'function')
@@ -209,7 +209,7 @@ function main() {
   idx.toggleMode()
   ok('切换按钮能在两套视角间来回', idx.data.mode === 'old')
   ok('首页不再直接显示真名（默认昵称占位）', idx.data.name === '' || idx.data.name === '给自己起个昵称' || idx.data.hasNickname === false)
-  ok('首页有推荐区与五行区的方法', typeof idx.loadRecs === 'function' && typeof idx.loadGanzhi === 'function')
+  ok('首页有推荐区与五行区的方法', typeof idx.loadRec === 'function' && typeof idx.loadGanzhi === 'function')
 
   const quiz = loadPage('pages/quiz/quiz.js')
   ok('问答页有 pick / load', typeof quiz.pick === 'function' && typeof quiz.load === 'function')
@@ -236,6 +236,42 @@ function main() {
   ok('我的页已有「最近的记忆」', mineWxml.includes('最近的记忆'))
   const idxSrc = fs.readFileSync(path.join(MP, 'pages/index/index.js'), 'utf8')
   ok('首页 JS 不再装配 hints', !idxSrc.includes('personaHints'))
+
+  console.log('\n【10】档案与我的已合并：一页三段，档案事实可点即改')
+  ok('档案页已下线（app.json 不再注册）', !(appJson.pages || []).includes('pages/profile/profile'))
+  ok('档案页目录已删除', !fs.existsSync(path.join(MP, 'pages/profile')))
+  ok('tabBar 不再有「档案」', !(appJson.tabBar.list || []).some(t => t.text === '档案'))
+  ok('我的页分三段', (mine.data.segs || []).length === 3 && mine.data.seg === 'file')
+  ok('三段切换方法存在', typeof mine.switchSeg === 'function')
+  ok('切换后落到对应段', (() => {
+    mine.switchSeg({ currentTarget: { dataset: { seg: 'body' } } })
+    return mine.data.seg === 'body'
+  })())
+  ok('档案事实可点即改', typeof mine.editFact === 'function' && typeof mine.saveFact === 'function')
+  ok('冲突可裁决', typeof mine.doResolve === 'function' && typeof mine.resolve === 'function')
+  ok('开发设置（服务地址）随页带过来', typeof mine.saveBase === 'function')
+  ok('我的页含 12 维兜底维度', /FALLBACK_DIMS/.test(fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')))
+  ok('我的页无跨页跳档案的残留', !fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8').includes('pages/profile'))
+
+  console.log('\n【11】首页六模块：历 / 食 / 动 / 程 / 饮 / 梦')
+  const idxWxml2 = fs.readFileSync(path.join(MP, 'pages/index/index.wxml'), 'utf8')
+  const mods = ['今日五行', '今天吃什么', '动一动', '日程', '喝点什么', '记个梦']
+  const missingMods = mods.filter(m => !idxWxml2.includes(m))
+  ok('六个模块标题都在', missingMods.length === 0, missingMods.join('、'))
+  const iconChars = ['历', '食', '动', '程', '饮', '梦']
+  const missingIcons = iconChars.filter(c => !idxWxml2.includes(`class="mod-icon">${c}<`))
+  ok('六个模块各有一个印章图标（历/食/动/程/饮/梦）', missingIcons.length === 0, missingIcons.join('、'))
+  ok('模块头不再是旧的「现在要做什么」', !idxWxml2.includes('现在要做什么'))
+  ok('快捷入口网格已去掉（与模块重复）', !idxWxml2.includes('quick-grid'))
+  ok('首页按模块取数据', ['loadGanzhi', 'loadRec', 'loadWine', 'loadAgenda', 'submitDream'].every(k => typeof idx[k] === 'function'))
+  ok('吃与动可以本地换一条', typeof idx.nextRec === 'function')
+
+  const agenda = loadPage('pages/agenda/agenda.js')
+  ok('日程页有加载/新增/勾完/删除', ['load', 'save', 'toggle', 'remove'].every(k => typeof agenda[k] === 'function'))
+  agenda.buildChips()
+  ok('日程日期快捷项：今天/明天/后天', (agenda.data.dateChips || []).map(c => c.label).join(',') === '今天,明天,后天')
+  ok('日程默认落在今天', agenda.data.date === agenda.data.todayKey)
+  ok('日程列表初始为空（不假装有安排）', Array.isArray(agenda.data.groups) && agenda.data.groups.length === 0)
 
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {

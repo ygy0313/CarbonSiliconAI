@@ -67,7 +67,7 @@
   <view class="bottom-space"></view>
   <view class="footer">
     <view class="btn btn-ghost footer-btn" bindtap="back">回去改</view>
-    <view class="btn btn-primary footer-btn" bindtap="acceptPlan">就这么定</view>
+    <view class="btn btn-primary footer-btn" bindtap="acceptPlan">{{accepted ? '已定，记进日程了' : '就这么定'}}</view>
   </view>
 
 </view>

@@ -35,7 +35,7 @@ function request(path, { method = 'GET', data = null, token = null, timeout = TI
       fail(e) {
         reject({
           code: 'NETWORK',
-          message: '连不上本地服务。确认后端已启动（node src/index.js），或在「档案」页改服务地址。',
+          message: '连不上本地服务。确认后端已启动（node src/index.js），或在「我的」页改服务地址。',
           raw: e,
         })
       },
@@ -119,6 +119,15 @@ module.exports = {
     request(`/api/persons/${personId}/vision/meal`, { method: 'POST', data: { image, label }, timeout: 25000 }),
   transcribe: (personId, audio, mime) =>
     request(`/api/persons/${personId}/voice/transcribe`, { method: 'POST', data: { audio, mime }, timeout: 35000 }),
+
+  // ── 日程：用户认下的事 ──
+  getAgenda: (personId, days) => request(`/api/persons/${personId}/agenda?days=${days || 7}`),
+  addAgenda: (personId, payload) =>
+    request(`/api/persons/${personId}/agenda`, { method: 'POST', data: payload }),
+  setAgendaDone: (personId, id, done) =>
+    request(`/api/persons/${personId}/agenda/${id}/done`, { method: 'POST', data: { done } }),
+  removeAgenda: (personId, id) =>
+    request(`/api/persons/${personId}/agenda/${id}/remove`, { method: 'POST', data: {} }),
 
   // ── 经验资产 ──
   getExperiences: (personId, status) =>

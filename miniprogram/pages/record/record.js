@@ -278,7 +278,7 @@ Page({
   },
 
   goProfile() {
-    wx.switchTab({ url: '/pages/profile/profile' })
+    wx.switchTab({ url: '/pages/grant/grant' })
   },
 })
 

@@ -7,171 +7,248 @@
       <view class="me-name">{{hasNickname ? nickname : '给自己起个昵称'}}</view>
       <view class="t-mini mt-8">档案完整度 {{completenessPct || '0'}}% · 点名字可改昵称</view>
     </view>
-    <text class="me-more" catchtap="goProfile">完善档案 ›</text>
+    <text class="me-more">{{filledCount}} / {{dimTotal}} 项</text>
   </view>
 
-  <!-- ── 个人八字 ── -->
-  <view class="section">
-    <text class="section-title">个人八字</text>
-  </view>
-  <view class="card">
-    <view class="t-mini">录入出生年月日（时辰可选），生成你的命盘。只描述构成与偏好倾向，不作吉凶断言。</view>
-    <view class="bz-form mt-16">
-      <picker class="bz-item" mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
-        <view class="pick-box {{birthDate ? '' : 'is-empty'}}">{{birthDate || '出生年月日'}}</view>
-      </picker>
-      <picker class="bz-item" range="{{hourOptions}}" value="{{hourIdx}}" bindchange="onHourPick">
-        <view class="pick-box">{{hourOptions[hourIdx]}}</view>
-      </picker>
+  <view class="t-mini mt-8" wx:if="{{offline}}">离线演示 · 改动不会保存</view>
+
+  <!-- ── 三段切换：我是谁 / 我现在怎么样 / 数据归谁 ── -->
+  <view class="seg-bar">
+    <view wx:for="{{segs}}" wx:key="key" class="seg {{seg === item.key ? 'seg-on' : ''}}" data-seg="{{item.key}}" bindtap="switchSeg">
+      <text class="seg-text">{{item.label}}</text>
     </view>
-    <view class="bz-form mt-16">
-      <input class="input bz-place" value="{{birthPlace}}" bindinput="onPlace" placeholder="出生城市（可不填）" maxlength="12" />
-    </view>
-    <button class="btn btn-primary bz-btn" bindtap="saveBazi" disabled="{{saving}}">{{saving ? '排盘中…' : (chart ? '重新生成命盘' : '生成命盘')}}</button>
-
-    <block wx:if="{{chart}}">
-      <view class="bz-divider"></view>
-      <view class="bz-pillars">
-        <view wx:for="{{chart.four}}" wx:key="label" class="bz-pillar">
-          <text class="bz-label">{{item.label}}</text>
-          <text class="bz-text">{{item.text}}</text>
-          <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
-        </view>
-      </view>
-      <view class="t-body mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
-      <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
-        <text class="gz-bar-name">{{item.el}}</text>
-        <view class="gz-bar-track">
-          <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
-        </view>
-        <text class="gz-bar-pct">{{item.pct}}%</text>
-      </view>
-      <view class="t-mini mt-8">{{chart.note}}</view>
-    </block>
   </view>
 
-  <!-- ── 健康 ── -->
-  <view class="section">
-    <text class="section-title">健康</text>
-  </view>
-  <view class="card">
-    <view class="t-mini">步数从「微信运动」同步；iPhone「健康」库小程序读不到，用药、睡眠先手动记一笔 —— 都会进你的档案，参与执笔对你的理解。</view>
+  <!-- ══ 档案：我是谁 ══ -->
+  <block wx:if="{{seg === 'file'}}">
 
-    <view class="weun mt-16" wx:if="{{weun && weun.today}}">
-      <view class="weun-main">
-        <text class="weun-num">{{weun.today.step}}</text>
-        <text class="weun-unit">步 · 今日</text>
-      </view>
-      <view class="t-mini">≈ {{weun.kcalEstimate}} kcal · 相当于快走约 {{weun.fastWalkMin}} 分钟</view>
-      <view class="weun-week">
-        <view wx:for="{{weun.week}}" wx:key="date" class="weun-day">
-          <view class="weun-bar-bg">
-            <view class="weun-bar" style="height:{{item.pct}}%"></view>
-          </view>
-          <text class="weun-date">{{item.label}}</text>
-        </view>
-      </view>
-      <button class="btn btn-ghost btn-sm mt-16" wx:if="{{!weunRecorded}}" bindtap="saveSteps" disabled="{{busy}}">把今天的步数记入档案</button>
-      <view class="t-mini mt-8" wx:else>今天已在案 ✓</view>
-    </view>
-    <button class="btn btn-primary weun-btn mt-16" wx:else bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读今日步数（微信运动）'}}</button>
-
-    <view class="bz-divider"></view>
-    <view class="t-body">手动记一笔</view>
-    <view class="row wrap gap-8 mt-16">
-      <view wx:for="{{healthTypes}}" wx:key="*this" class="{{healthTypeIdx === index ? 'chip chip-on' : 'chip'}}" bindtap="pickHealthType" data-idx="{{index}}">{{item}}</view>
-    </view>
-    <view class="mt-16">
-      <input class="input" value="{{healthText}}" bindinput="onHealthText" placeholder="{{healthTypes[healthTypeIdx]}}，例如：早上 8 点吃了降压药" maxlength="60" />
-    </view>
-    <button class="btn btn-primary weun-btn mt-16" bindtap="saveHealth" disabled="{{healthSaving}}">{{healthSaving ? '记录中…' : '记入档案'}}</button>
-  </view>
-
-  <!-- ── 它现在这样理解你 ── -->
-  <view class="section">
-    <text class="section-title">它现在这样理解你</text>
-  </view>
-  <view class="card">
-    <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
-      <view class="dot"></view>
-      <text class="t-body grow">{{item}}</text>
-    </view>
-    <view class="t-mini" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
-  </view>
-
-  <!-- ── 最近的记忆 ── -->
-  <view class="section">
-    <text class="section-title">最近的记忆</text>
-  </view>
-  <view class="card" wx:if="{{recent.length}}">
-    <view wx:for="{{recent}}" wx:key="id" class="memory">
+    <view class="card mt-16">
       <view class="row between">
-        <text class="t-body grow">{{item.summary}}</text>
-        <text class="t-mini">{{item.when}}</text>
+        <text class="t-sub">它对你的把握</text>
+        <text class="t-green t-body">{{completenessPct || '0'}}%</text>
       </view>
-      <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
-        <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+      <view class="bar mt-16">
+        <view class="bar-fill" style="width:{{completenessPct}}%"></view>
+      </view>
+      <view class="t-mini mt-8">{{filledCount}} / {{dimTotal}} 个维度有记录 · 百分比按置信度加权，越低越值得你确认一遍</view>
+    </view>
+
+    <view wx:if="{{conflicts.length}}" class="conflict-box mt-16">
+      <view class="t-amber t-sub">有 {{conflicts.length}} 件事跟你原来的说法对不上</view>
+      <view wx:for="{{conflicts}}" wx:key="id" class="conflict-item" bindtap="resolve" data-id="{{item.id}}">
+        <text class="t-body">{{item.question}}</text>
+        <text class="t-mini mt-8">点这里定一下 →</text>
       </view>
     </view>
-  </view>
-  <view class="card" wx:else>
-    <view class="t-mini">还没有记录。执笔对你还一无所知。</view>
-  </view>
 
-  <!-- ── 我的 Prompt ── -->
-  <view class="section">
-    <text class="section-title">我的 Prompt</text>
-  </view>
-  <view class="card">
-    <view class="t-mini">执笔怎么理解你、怎么跟你说话，都由这段提示词驱动 —— 你的档案、经验、Obsidian 笔记都汇在这里。查看时会自动签一张 15 分钟、3 次的授权，留档可查。</view>
-    <view class="row wrap gap-8 mt-16">
-      <button class="btn btn-primary btn-sm" bindtap="viewMyPrompt" disabled="{{busy}}">查看我的 Prompt</button>
-      <button class="btn btn-ghost btn-sm" bindtap="exportMine" disabled="{{busy}}">导出档案</button>
-      <button class="btn btn-ghost btn-sm" wx:if="{{promptText}}" bindtap="copyPrompt">复制</button>
-    </view>
-    <view class="t-mini mt-8" wx:if="{{exportInfo}}">{{exportInfo}}</view>
-    <view class="prompt-box mt-16" wx:if="{{promptText}}">{{promptText}}</view>
-  </view>
-
-  <!-- ── 授权记录 ── -->
-  <view class="section">
-    <text class="section-title">授权记录</text>
-  </view>
-  <view class="card" wx:if="{{grants.length}}">
-    <view wx:for="{{grants}}" wx:key="id" class="{{item.rowCls}}">
-      <view class="grow">
-        <view class="t-body">{{item.scopeText}}</view>
-        <view class="t-mini mt-8">{{item.purpose}} · {{item.stateText}}</view>
+    <view wx:for="{{groups}}" wx:key="name">
+      <view class="section">
+        <text class="section-title">{{item.name}}</text>
+        <text class="section-more">{{item.items.length}} 项</text>
       </view>
-      <button class="btn btn-ghost btn-sm" wx:if="{{!item.revoked}}" bindtap="revoke" data-id="{{item.id}}">撤销</button>
+      <view class="card">
+        <view wx:for="{{item.items}}" wx:for-item="f" wx:key="key" class="fact" bindtap="editFact" data-key="{{f.key}}">
+          <view class="row between">
+            <text class="fact-label">{{f.label}}</text>
+            <text class="fact-value {{f.empty ? 'is-empty' : ''}}">{{f.value}}</text>
+          </view>
+          <view class="row between mt-8">
+            <view class="conf-bar">
+              <view class="conf-fill {{f.weak ? 'conf-weak' : ''}}" style="width:{{f.pct}}%"></view>
+            </view>
+            <text class="t-mini">{{f.pct}}%</text>
+          </view>
+          <text class="t-mini mt-8" wx:if="{{f.note}}">{{f.note}}</text>
+        </view>
+      </view>
     </view>
-  </view>
-  <view class="card" wx:else>
-    <view class="t-mini">还没有授权发生。每次有人（包括执笔自己）要读你的原文，都会先在这里签一张有用途、有期限、有次数的授权。</view>
-  </view>
 
-  <view class="section">
-    <text class="section-title">数据账本</text>
-  </view>
-  <view class="card" wx:if="{{audits.length}}">
-    <view wx:for="{{audits}}" wx:key="id" class="grant-row">
-      <text class="t-mini">{{item.time}}</text>
-      <text class="t-mini grow">{{item.text}}</text>
+    <!-- 个人八字 -->
+    <view class="section">
+      <text class="section-title">个人八字</text>
     </view>
-  </view>
-  <view class="card" wx:else>
-    <view class="t-mini">暂无动账记录。</view>
-  </view>
+    <view class="card">
+      <view class="t-mini">录入出生年月日（时辰可选），生成你的命盘。只描述构成与偏好倾向，不作吉凶断言。</view>
+      <view class="bz-form mt-16">
+        <picker class="bz-item" mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
+          <view class="pick-box {{birthDate ? '' : 'is-empty'}}">{{birthDate || '出生年月日'}}</view>
+        </picker>
+        <picker class="bz-item" range="{{hourOptions}}" value="{{hourIdx}}" bindchange="onHourPick">
+          <view class="pick-box">{{hourOptions[hourIdx]}}</view>
+        </picker>
+      </view>
+      <view class="bz-form mt-16">
+        <input class="input bz-place" value="{{birthPlace}}" bindinput="onPlace" placeholder="出生城市（可不填）" maxlength="12" />
+      </view>
+      <button class="btn btn-primary bz-btn" bindtap="saveBazi" disabled="{{saving}}">{{saving ? '排盘中…' : (chart ? '重新生成命盘' : '生成命盘')}}</button>
 
-  <!-- ── 法律文本 ── -->
-  <view class="section">
-    <text class="section-title">法律文本</text>
-  </view>
-  <view class="card">
-    <view class="row wrap gap-8">
-      <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="privacy">隐私政策</button>
-      <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="terms">用户协议</button>
+      <block wx:if="{{chart}}">
+        <view class="bz-divider"></view>
+        <view class="bz-pillars">
+          <view wx:for="{{chart.four}}" wx:key="label" class="bz-pillar">
+            <text class="bz-label">{{item.label}}</text>
+            <text class="bz-text">{{item.text}}</text>
+            <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
+          </view>
+        </view>
+        <view class="t-body mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
+        <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
+          <text class="gz-bar-name">{{item.el}}</text>
+          <view class="gz-bar-track">
+            <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
+          </view>
+          <text class="gz-bar-pct">{{item.pct}}%</text>
+        </view>
+        <view class="t-mini mt-8">{{chart.note}}</view>
+      </block>
     </view>
-  </view>
+
+  </block>
+
+  <!-- ══ 身体：我现在怎么样 ══ -->
+  <block wx:elif="{{seg === 'body'}}">
+
+    <view class="section">
+      <text class="section-title">今日步数</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">步数从「微信运动」同步；iPhone「健康」库小程序读不到，用药、睡眠先手动记一笔 —— 都会进你的档案，参与执笔对你的理解。</view>
+
+      <view class="weun mt-16" wx:if="{{weun && weun.today}}">
+        <view class="weun-main">
+          <text class="weun-num">{{weun.today.step}}</text>
+          <text class="weun-unit">步 · 今日</text>
+        </view>
+        <view class="t-mini">≈ {{weun.kcalEstimate}} kcal · 相当于快走约 {{weun.fastWalkMin}} 分钟</view>
+        <view class="weun-week">
+          <view wx:for="{{weun.week}}" wx:key="date" class="weun-day">
+            <view class="weun-bar-bg">
+              <view class="weun-bar" style="height:{{item.pct}}%"></view>
+            </view>
+            <text class="weun-date">{{item.label}}</text>
+          </view>
+        </view>
+        <button class="btn btn-ghost btn-sm mt-16" wx:if="{{!weunRecorded}}" bindtap="saveSteps" disabled="{{busy}}">把今天的步数记入档案</button>
+        <view class="t-mini mt-8" wx:else>今天已在案 ✓</view>
+      </view>
+      <button class="btn btn-primary weun-btn mt-16" wx:else bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读今日步数（微信运动）'}}</button>
+    </view>
+
+    <view class="section">
+      <text class="section-title">手动记一笔</text>
+    </view>
+    <view class="card">
+      <view class="row wrap gap-8">
+        <view wx:for="{{healthTypes}}" wx:key="*this" class="{{healthTypeIdx === index ? 'chip chip-on' : 'chip'}}" bindtap="pickHealthType" data-idx="{{index}}">{{item}}</view>
+      </view>
+      <view class="mt-16">
+        <input class="input" value="{{healthText}}" bindinput="onHealthText" placeholder="{{healthTypes[healthTypeIdx]}}，例如：早上 8 点吃了降压药" maxlength="60" />
+      </view>
+      <button class="btn btn-primary weun-btn mt-16" bindtap="saveHealth" disabled="{{healthSaving}}">{{healthSaving ? '记录中…' : '记入档案'}}</button>
+    </view>
+
+  </block>
+
+  <!-- ══ 数据：它怎么看我 + 数据归谁 ══ -->
+  <block wx:else>
+
+    <view class="section">
+      <text class="section-title">它现在这样理解你</text>
+    </view>
+    <view class="card">
+      <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
+        <view class="dot"></view>
+        <text class="t-body grow">{{item}}</text>
+      </view>
+      <view class="t-mini" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">最近的记忆</text>
+      <text class="section-more">最近 5 条</text>
+    </view>
+    <view class="card" wx:if="{{recent.length}}">
+      <view wx:for="{{recent}}" wx:key="id" class="memory">
+        <view class="row between">
+          <text class="t-body grow">{{item.summary}}</text>
+          <text class="t-mini">{{item.when}}</text>
+        </view>
+        <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
+          <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="card" wx:else>
+      <view class="t-mini">还没有记录。执笔对你还一无所知。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">我的 Prompt</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">执笔怎么理解你、怎么跟你说话，都由这段提示词驱动 —— 你的档案、经验、Obsidian 笔记都汇在这里。查看时会自动签一张 15 分钟、3 次的授权，留档可查。</view>
+      <view class="row wrap gap-8 mt-16">
+        <button class="btn btn-primary btn-sm" bindtap="viewMyPrompt" disabled="{{busy}}">查看我的 Prompt</button>
+        <button class="btn btn-ghost btn-sm" bindtap="exportMine" disabled="{{busy}}">导出档案</button>
+        <button class="btn btn-ghost btn-sm" wx:if="{{promptText}}" bindtap="copyPrompt">复制</button>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{exportInfo}}">{{exportInfo}}</view>
+      <view class="prompt-box mt-16" wx:if="{{promptText}}">{{promptText}}</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">授权记录</text>
+      <text class="section-more">谁能读你的原文</text>
+    </view>
+    <view class="card" wx:if="{{grants.length}}">
+      <view wx:for="{{grants}}" wx:key="id" class="{{item.rowCls}}">
+        <view class="grow">
+          <view class="t-body">{{item.scopeText}}</view>
+          <view class="t-mini mt-8">{{item.purpose}} · {{item.stateText}}</view>
+        </view>
+        <button class="btn btn-ghost btn-sm" wx:if="{{!item.revoked}}" bindtap="revoke" data-id="{{item.id}}">撤销</button>
+      </view>
+    </view>
+    <view class="card" wx:else>
+      <view class="t-mini">还没有授权发生。每次有人（包括执笔自己）要读你的原文，都会先在这里签一张有用途、有期限、有次数的授权。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">数据账本</text>
+      <text class="section-more">只追加，不改写</text>
+    </view>
+    <view class="card" wx:if="{{audits.length}}">
+      <view wx:for="{{audits}}" wx:key="id" class="grant-row">
+        <text class="t-mini">{{item.time}}</text>
+        <text class="t-mini grow">{{item.text}}</text>
+      </view>
+    </view>
+    <view class="card" wx:else>
+      <view class="t-mini">暂无动账记录。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">法律文本</text>
+    </view>
+    <view class="card">
+      <view class="row wrap gap-8">
+        <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="privacy">隐私政策</button>
+        <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="terms">用户协议</button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">开发设置</text>
+      <text class="section-more" bindtap="toggleSettings">{{showSettings ? '收起' : '展开'}}</text>
+    </view>
+    <view class="card" wx:if="{{showSettings}}">
+      <view class="row between" bindtap="saveBase">
+        <text class="t-sub">服务地址</text>
+        <text class="t-mini mono">{{apiBase}}</text>
+      </view>
+      <view class="t-mini mt-16">真机调试请填电脑的局域网 IP，如 http://192.168.1.10:8787</view>
+    </view>
+
+  </block>
 
 </view>

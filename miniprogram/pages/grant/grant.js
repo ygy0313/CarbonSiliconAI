@@ -1,5 +1,13 @@
-// 我的：个人属性聚合页 —— 昵称、个人八字、健康（微信运动+手动）、理解你、最近记忆、我的 Prompt、授权与法律。
-// 红线：明文票据只在内存里用一次，不写本地存储；命盘/健康只描述状态，不作吉凶与医学断言。
+// 我的：一个人的全部——档案、八字、健康、它怎么看你、数据归谁。
+//
+// 合并说明（2026-10-26）：原来的「档案」页和「我的」页各讲一半，都讲不全，
+// 用户要在两个 tab 之间来回跳才能拼出「它到底知道我什么」。现在合成一页，
+// 用三段切换避免一条到底的长滚动：
+//   档案 = 我是谁（完整度 / 12 维事实 / 冲突裁决 / 八字）
+//   身体 = 我现在怎么样（微信运动 / 用药睡眠体重）
+//   数据 = 它怎么看我 + 数据归谁（理解你 / 记忆 / Prompt / 授权 / 账本 / 法律）
+//
+// 红线：明文票据只在内存里用一次，不写本地存储；命盘与健康只描述状态，不作吉凶与医学断言。
 
 const app = getApp()
 const api = require('../../utils/api')
@@ -26,12 +34,44 @@ const HEALTH_TYPES = ['用药', '睡眠', '体重', '其他']
 // WXSS 不支持中文类名，五行条用英文类名（与首页同一套映射）
 const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
 
+const GROUP_ORDER = ['饮食', '社交', '生活', '自我']
+
+// 拿不到 /api/meta 时的兜底维度，保证离线也能看到结构
+const FALLBACK_DIMS = [
+  { key: 'diet.spicy', label: '辣度耐受', group: '饮食', type: 'enum', options: ['不吃辣', '微辣', '中辣', '重辣'] },
+  { key: 'diet.stomach', label: '肠胃', group: '饮食', type: 'enum', options: ['正常', '偏敏感', '易上火'] },
+  { key: 'diet.taste', label: '口味倾向', group: '饮食', type: 'enum', options: ['清淡', '咸鲜', '重口', '偏甜'] },
+  { key: 'diet.avoid', label: '忌口', group: '饮食', type: 'tags' },
+  { key: 'social.groupSize', label: '常组局人数', group: '社交', type: 'number' },
+  { key: 'social.experience', label: '剧本杀经验', group: '社交', type: 'enum', options: ['没玩过', '1-3 次', '3 次以上', '老玩家'] },
+  { key: 'social.preference', label: '题材偏好', group: '社交', type: 'tags' },
+  { key: 'social.role', label: '组局角色', group: '社交', type: 'enum', options: ['发起人', '跟随者', '都可'] },
+  { key: 'life.city', label: '常驻城市', group: '生活', type: 'text' },
+  { key: 'life.budget', label: '单次预算', group: '生活', type: 'number' },
+  { key: 'life.rhythm', label: '作息节奏', group: '生活', type: 'enum', options: ['早睡早起', '正常', '夜猫子'] },
+  { key: 'self.identity', label: '自我描述', group: '自我', type: 'text' },
+]
+
+const SEGS = [
+  { key: 'file', label: '档案' },
+  { key: 'body', label: '身体' },
+  { key: 'data', label: '数据' },
+]
+
 Page({
   data: {
+    segs: SEGS,
+    seg: 'file',
     // ── 头卡 ──
     nickname: '',
     hasNickname: false,
     completenessPct: '',
+    offline: false,
+    // ── 档案 ──
+    groups: [],
+    conflicts: [],
+    filledCount: 0,
+    dimTotal: 12,
     // ── 八字 ──
     birthDate: '',
     hourOptions: HOUR_OPTIONS.map(o => o.label),
@@ -48,7 +88,7 @@ Page({
     healthTypeIdx: 0,
     healthText: '',
     healthSaving: false,
-    // ── 理解你 / 最近记忆 ──
+    // ── 理解你 / 记忆 ──
     hints: [],
     recent: [],
     // ── 我的 Prompt / 授权 ──
@@ -57,25 +97,41 @@ Page({
     promptText: '',
     exportInfo: '',
     busy: false,
+    // ── 开发设置 ──
+    apiBase: '',
+    showSettings: false,
   },
 
   onLoad() {
-    this.reload()
-    this.loadMine()
+    this._inited = true
+    this.refreshAll()
   },
 
   onShow() {
+    // onLoad 已经全部拉过一次，这里只刷新会随记录变化的部分
+    if (!this._inited) return
     this.loadMine()
+    this.loadFacts()
   },
 
   onPullDownRefresh() {
-    Promise.all([this.reload(), this.loadMine()]).finally(() => wx.stopPullDownRefresh())
+    this.refreshAll().finally(() => wx.stopPullDownRefresh())
   },
 
-  // ── 个人属性：昵称 / 完整度 / 理解你 / 最近记忆 / 八字回填 ──
+  async refreshAll() {
+    await Promise.all([this.reload(), this.loadMine(), this.loadFacts()])
+  },
+
+  switchSeg(e) {
+    const seg = e.currentTarget.dataset.seg
+    if (!seg || seg === this.data.seg) return
+    this.setData({ seg })
+  },
+
+  // ── 头卡 + 理解你 + 最近记忆 + 八字回填 ──
   async loadMine() {
     const nickname = wx.getStorageSync('nickname') || ''
-    this.setData({ nickname, hasNickname: !!nickname })
+    this.setData({ nickname, hasNickname: !!nickname, apiBase: api.getBase() })
     try {
       const silicon = await app.loadSilicon(false)
       const recent = (silicon.episodes || []).slice(0, 5).map(e => ({
@@ -85,6 +141,7 @@ Page({
         tags: (e.tags || []).slice(0, 2),
       }))
       this.setData({
+        offline: !!app.globalData.offline,
         completenessPct: Math.round((silicon.completeness || 0) * 100) + '',
         hints: (silicon.traits && silicon.traits.personaHints) || [],
         recent,
@@ -123,8 +180,141 @@ Page({
     })
   },
 
-  goProfile() {
-    wx.switchTab({ url: '/pages/profile/profile' })
+  // ── 档案：12 维事实（原「档案」页的核心，合并进来后仍可点即改）──
+  async loadFacts() {
+    let silicon = null
+    let profile = null
+    let conflicts = []
+    try {
+      const res = await api.getSilicon(app.globalData.personId)
+      silicon = res.silicon
+      conflicts = res.pendingConflicts || []
+      profile = await api.getProfile(app.globalData.personId)
+      this.setData({ offline: false })
+    } catch (_) {
+      this.setData({ offline: true })
+      return
+    }
+
+    const dims = await this.dimensions()
+    const byKey = {}
+    for (const f of (profile && profile.facts) || silicon.facts || []) byKey[f.key] = f
+
+    let filledCount = 0
+    const groups = GROUP_ORDER.map(name => {
+      const items = dims
+        .filter(d => d.group === name)
+        .map(d => {
+          const f = byKey[d.key]
+          const conf = f ? Number(f.confidence || 0) : 0
+          if (f) filledCount += 1
+          return {
+            key: d.key,
+            label: d.label,
+            value: f ? String(f.value) : '未填',
+            empty: !f,
+            pct: Math.round(conf * 100) + '',
+            weak: conf > 0 && conf < 0.5,
+            note: (f && f.note) || '',
+            options: d.options || [],
+            type: d.type,
+          }
+        })
+      return items.length ? { name, items } : null
+    }).filter(Boolean)
+
+    this.setData({
+      groups,
+      conflicts: conflicts.map(c => ({
+        id: c.id,
+        label: c.label || c.key,
+        question: c.question,
+        options: c.options || [
+          { id: 'keep_new', label: '用新说法' },
+          { id: 'keep_old', label: '保留原来' },
+          { id: 'both', label: '都算' },
+        ],
+      })),
+      filledCount,
+      dimTotal: dims.length,
+      completenessPct: silicon ? Math.round((silicon.completeness || 0) * 100) + '' : this.data.completenessPct,
+    })
+  },
+
+  async dimensions() {
+    try {
+      const meta = await api.getMeta()
+      return (meta && meta.dimensions) || FALLBACK_DIMS
+    } catch (_) {
+      return FALLBACK_DIMS
+    }
+  },
+
+  editFact(e) {
+    const key = e.currentTarget.dataset.key
+    const item = findFact(this.data.groups, key)
+    if (!item) return
+
+    if (item.options && item.options.length) {
+      const that = this
+      wx.showActionSheet({
+        itemList: item.options,
+        success(res) {
+          that.saveFact(key, item.options[res.tapIndex])
+        },
+      })
+      return
+    }
+
+    const that = this
+    wx.showModal({
+      title: item.label,
+      editable: true,
+      placeholderText: item.empty ? '填一个值' : item.value,
+      success(res) {
+        if (res.confirm && res.content) that.saveFact(key, res.content.trim())
+      },
+    })
+  },
+
+  async saveFact(key, value) {
+    if (this.data.offline) {
+      wx.showToast({ title: '离线模式改不了', icon: 'none' })
+      return
+    }
+    try {
+      await api.saveFact(app.globalData.personId, key, value)
+      wx.showToast({ title: '已更新', icon: 'none' })
+      await this.loadFacts()
+      app.loadSilicon(true)
+    } catch (err) {
+      wx.showToast({ title: '更新失败', icon: 'none' })
+    }
+  },
+
+  resolve(e) {
+    const cid = e.currentTarget.dataset.id
+    const conflict = this.data.conflicts.find(c => c.id === cid)
+    if (!conflict) return
+    const that = this
+    wx.showActionSheet({
+      itemList: conflict.options.map(o => o.label),
+      success(res) {
+        that.doResolve(cid, conflict.options[res.tapIndex].id)
+      },
+    })
+  },
+
+  async doResolve(cid, decision) {
+    if (this.data.offline) return
+    try {
+      await api.resolveConflict(app.globalData.personId, cid, decision)
+      wx.showToast({ title: '已定', icon: 'none' })
+      await this.loadFacts()
+      app.loadSilicon(true)
+    } catch (err) {
+      wx.showToast({ title: '保存失败', icon: 'none' })
+    }
   },
 
   // ── 八字录入 ──
@@ -286,6 +476,27 @@ Page({
     wx.navigateTo({ url: '/pages/legal/legal?doc=' + (e.currentTarget.dataset.doc || 'privacy') })
   },
 
+  toggleSettings() {
+    this.setData({ showSettings: !this.data.showSettings })
+  },
+
+  saveBase() {
+    const that = this
+    wx.showModal({
+      title: '服务地址',
+      editable: true,
+      placeholderText: this.data.apiBase,
+      success(res) {
+        if (res.confirm && res.content) {
+          app.setApiBase(res.content.trim())
+          that.setData({ apiBase: res.content.trim() })
+          wx.showToast({ title: '已切换', icon: 'none' })
+          that.refreshAll()
+        }
+      },
+    })
+  },
+
   // ── 授权与审计 ──
   async reload() {
     try {
@@ -374,3 +585,11 @@ Page({
     }
   },
 })
+
+function findFact(groups, key) {
+  for (const g of groups) {
+    const hit = g.items.find(i => i.key === key)
+    if (hit) return hit
+  }
+  return null
+}

@@ -66,7 +66,7 @@
     </view>
 
     <view wx:if="{{result.conflicts.length}}" class="conflict">
-      <text class="t-amber t-sub">有 {{result.conflicts.length}} 处跟你原来的说法对不上，去档案里确认一下</text>
+      <text class="t-amber t-sub">有 {{result.conflicts.length}} 处跟你原来的说法对不上，去「我的 · 档案」里确认一下</text>
       <view class="btn btn-ghost btn-sm mt-16" bindtap="goProfile">去核对</view>
     </view>
 

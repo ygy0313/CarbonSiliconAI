@@ -1,0 +1,72 @@
+/* 日程页：加一条 → 看七天 → 勾完。全局 .section 放标题行，内容一律进 .card。 */
+
+.ag-head {
+  padding: 8rpx 4rpx 0;
+}
+.ag-title {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 1rpx;
+}
+
+.ag-form {
+  margin-top: 24rpx;
+}
+.ag-input {
+  min-height: 88rpx;
+  padding: 20rpx 24rpx;
+}
+
+/* ── 一天里的一条 ── */
+.ag-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.ag-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.ag-row:first-child {
+  padding-top: 0;
+}
+.ag-row.is-done .ag-name {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.ag-check {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ag-check.on {
+  background: var(--green);
+  border-color: var(--green);
+}
+.ag-check-mark {
+  font-size: 22rpx;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.ag-name {
+  font-size: 29rpx;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.ag-del {
+  font-size: 22rpx;
+  color: var(--text-3);
+  padding: 10rpx 4rpx 10rpx 16rpx;
+  flex-shrink: 0;
+}

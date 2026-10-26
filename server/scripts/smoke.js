@@ -157,6 +157,44 @@ async function main() {
   const badPath = await call('/api/nope')
   assert(badPath.status === 404, '未知路径返回 404')
 
+  // ── 日程：认下的事要能落库、能勾完、能被日历核对到 ──
+  const todayKey = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10)
+  const tomorrowKey = new Date(Date.now() + 8 * 3600 * 1000 + 86400000).toISOString().slice(0, 10)
+
+  const ag1 = await call(`/api/persons/${PERSON}/agenda`, 'POST', { title: '和小林吃面', time: '12:30' })
+  assert(ag1.status === 200 && !!ag1.body.data.item.id, '记一条日程')
+  assert(ag1.body.data.item.date === todayKey, '不填日期默认落在今天', ag1.body.data.item.date)
+  assert(ag1.body.data.item.dayLabel === '今天', '日程带人话标签', ag1.body.data.item.dayLabel)
+
+  const agNoTitle = await call(`/api/persons/${PERSON}/agenda`, 'POST', { title: '   ' })
+  assert(agNoTitle.status === 400, '空标题被拒绝', agNoTitle.body.error.code)
+  const agBadDate = await call(`/api/persons/${PERSON}/agenda`, 'POST', { title: '假日子', date: '2026-02-31' })
+  assert(agBadDate.status === 400, '不存在的日期被拒绝', agBadDate.body.error.code)
+  const agBadTime = await call(`/api/persons/${PERSON}/agenda`, 'POST', { title: '错时间', time: '25:90' })
+  assert(agBadTime.status === 400, '非法时刻被拒绝', agBadTime.body.error.code)
+
+  const agTomorrow = await call(`/api/persons/${PERSON}/agenda`, 'POST', { title: '牙医', date: tomorrowKey, time: '09:00' })
+  const agList = await call(`/api/persons/${PERSON}/agenda?days=7`)
+  assert(agList.body.data.counts.today === 1, '今天 1 件事', String(agList.body.data.counts.today))
+  assert(agList.body.data.groups.length === 2, '按天分成两组', String(agList.body.data.groups.length))
+  assert(agList.body.data.groups[1].dayLabel === '明天', '第二组是明天', agList.body.data.groups[1].dayLabel)
+
+  // 组局要看得出「这天已经有别的事」—— 日程是结构化数据，不再靠文本里碰巧出现的日期
+  const clash = await call(`/api/persons/${PERSON}/orchestrate`, 'POST', { text: '明天想和朋友组个局，5个人' })
+  const cplan = clash.body.data.cards.find(c => c.kind === 'plan')
+  assert(!!cplan && cplan.meta.conflict === true, '组局能看出这天已有安排', String(cplan && cplan.meta.booked))
+  assert(cplan.meta.date === tomorrowKey, '组局落在明天', String(cplan.meta.date))
+
+  const agDone = await call(`/api/persons/${PERSON}/agenda/${ag1.body.data.item.id}/done`, 'POST', { done: true })
+  assert(agDone.body.data.item.done === true, '勾掉一条日程')
+  const agGone = await call(`/api/persons/${PERSON}/agenda/${ag1.body.data.item.id}/remove`, 'POST', {})
+  assert(agGone.body.data.removed === true, '删掉一条日程')
+  // 隔离：换个人来动同一条日程，一律当作不存在（不是「无权限」—— 连存在都不承认）
+  const P2 = PERSON + '_b'
+  await call('/api/persons', 'POST', { id: P2, name: '另一个人' })
+  const agCross = await call(`/api/persons/${P2}/agenda/${agTomorrow.body.data.item.id}/done`, 'POST', { done: false })
+  assert(agCross.status === 404, '跨人改日程一律 404', String(agCross.status))
+
   // ── 清理 ──
   await call('/api/dev/reset', 'POST', {})
 

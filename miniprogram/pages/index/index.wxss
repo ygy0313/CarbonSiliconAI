@@ -1,3 +1,43 @@
+/* ── 模块头：印章式小图标 + 标题 + 右侧一句元信息 ──
+   图标用单个汉字（历/食/动/程/饮/梦），深绿底白字，与头像同一套印章语言。
+   不用 emoji：彩色表情在纸白＋深绿的版面上会散掉焦点。 */
+.mod-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+  margin: 48rpx 0 20rpx;
+}
+.mod-icon {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 10rpx;
+  background: var(--green-deep);
+  color: #e9f2ec;
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mod-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+.mod-meta {
+  font-size: 22rpx;
+  color: var(--text-3);
+  flex-shrink: 0;
+  max-width: 320rpx;
+  text-align: right;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* ── 问候开场 ───────────────────────────────────────── */
 .greet { padding: 8rpx 4rpx 0; }
 .greet-date { font-size: 24rpx; color: var(--text-3); letter-spacing: 1rpx; }
@@ -175,8 +215,7 @@
   padding: 26rpx 28rpx;
   margin-bottom: 16rpx;
   box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
-}
-.rec-top {
+}.rec-top {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -241,28 +280,50 @@
   line-height: 1.6;
 }
 
-/* ── 快捷入口 ───────────────────────────────────────── */
-.quick-grid {
+/* ── 日程模块（首页只摊今天，全部在 tab 里）─────────── */
+.ag-head {
+  font-size: 26rpx;
+  color: var(--text-2);
+  margin-bottom: 12rpx;
+}
+.ag-line {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  align-items: baseline;
   gap: 16rpx;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid var(--line);
 }
-.quick {
-  flex: 1 1 30%;
-  min-width: 200rpx;
-  background: var(--surface);
-  border-radius: 20rpx;
-  padding: 28rpx 22rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 136rpx;
-  box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
+.ag-line:last-of-type { border-bottom: none; }
+.ag-line.is-done { opacity: 0.5; }
+.ag-line.is-done .ag-title-text { text-decoration: line-through; }
+.ag-time {
+  font-size: 24rpx;
+  color: var(--green);
+  font-weight: 600;
+  width: 96rpx;
+  flex-shrink: 0;
 }
-.quick:active { background: var(--surface-2); }
-.quick-label { font-size: 27rpx; font-weight: 500; color: var(--text); line-height: 1.4; }
-.quick-arrow { font-size: 24rpx; color: var(--text-3); margin-top: 14rpx; }
+.ag-title-text {
+  font-size: 28rpx;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 喝点什么：不报价，只给价位带 ───────────────────── */
+.wine-note {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: var(--amber, #96690F);
+  line-height: 1.6;
+}
+
+/* ── 记个梦 ─────────────────────────────────────────── */
+.dream-input {
+  min-height: 120rpx;
+  line-height: 1.7;
+}
 
 .services-entry {
   margin-top: 16rpx;
