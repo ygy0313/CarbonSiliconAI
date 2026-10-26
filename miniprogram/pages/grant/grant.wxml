@@ -12,7 +12,7 @@
 
   <view class="t-mini mt-8" wx:if="{{offline}}">离线演示 · 改动不会保存</view>
 
-  <!-- ── 三段切换：我是谁 / 我现在怎么样 / 数据归谁 ── -->
+  <!-- ── 三段切换：我是谁 / 我的健康 / 数据归谁 ── -->
   <view class="seg-bar">
     <view wx:for="{{segs}}" wx:key="key" class="seg {{seg === item.key ? 'seg-on' : ''}}" data-seg="{{item.key}}" bindtap="switchSeg">
       <text class="seg-text">{{item.label}}</text>
@@ -63,13 +63,13 @@
       </view>
     </view>
 
-    <!-- 个人八字 -->
+    <!-- 个人八字：紧凑版，改完自动生成命盘 -->
     <view class="section">
       <text class="section-title">个人八字</text>
+      <text class="section-more">{{chart ? '已生成 · 改动自动更新' : '选好日期自动生成'}}</text>
     </view>
     <view class="card">
-      <view class="t-mini">录入出生年月日（时辰可选），生成你的命盘。只描述构成与偏好倾向，不作吉凶断言。</view>
-      <view class="bz-form mt-16">
+      <view class="bz-compact">
         <picker class="bz-item" mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
           <view class="pick-box {{birthDate ? '' : 'is-empty'}}">{{birthDate || '出生年月日'}}</view>
         </picker>
@@ -77,10 +77,9 @@
           <view class="pick-box">{{hourOptions[hourIdx]}}</view>
         </picker>
       </view>
-      <view class="bz-form mt-16">
-        <input class="input bz-place" value="{{birthPlace}}" bindinput="onPlace" placeholder="出生城市（可不填）" maxlength="12" />
+      <view class="mt-16">
+        <input class="input" value="{{birthPlace}}" bindinput="onPlace" bindblur="onPlaceDone" placeholder="出生城市（可不填）" maxlength="12" />
       </view>
-      <button class="btn btn-primary bz-btn" bindtap="saveBazi" disabled="{{saving}}">{{saving ? '排盘中…' : (chart ? '重新生成命盘' : '生成命盘')}}</button>
 
       <block wx:if="{{chart}}">
         <view class="bz-divider"></view>
@@ -91,7 +90,7 @@
             <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
           </view>
         </view>
-        <view class="t-body mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
+        <view class="t-sub mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
         <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
           <text class="gz-bar-name">{{item.el}}</text>
           <view class="gz-bar-track">
@@ -101,50 +100,59 @@
         </view>
         <view class="t-mini mt-8">{{chart.note}}</view>
       </block>
+      <view class="t-mini mt-16" wx:else>只描述构成与偏好倾向，不作吉凶断言。选好出生日期，命盘自动排出来。</view>
     </view>
 
   </block>
 
-  <!-- ══ 身体：我现在怎么样 ══ -->
+  <!-- ══ 健康：只看授权情况与脱敏摘要；手工记录统一在「记录」页 ══ -->
   <block wx:elif="{{seg === 'body'}}">
 
     <view class="section">
-      <text class="section-title">今日步数</text>
+      <text class="section-title">数据来源与授权</text>
+      <text class="section-more">本页只显示脱敏摘要</text>
     </view>
     <view class="card">
-      <view class="t-mini">步数从「微信运动」同步；iPhone「健康」库小程序读不到，用药、睡眠先手动记一笔 —— 都会进你的档案，参与执笔对你的理解。</view>
-
-      <view class="weun mt-16" wx:if="{{weun && weun.today}}">
-        <view class="weun-main">
-          <text class="weun-num">{{weun.today.step}}</text>
-          <text class="weun-unit">步 · 今日</text>
-        </view>
-        <view class="t-mini">≈ {{weun.kcalEstimate}} kcal · 相当于快走约 {{weun.fastWalkMin}} 分钟</view>
-        <view class="weun-week">
-          <view wx:for="{{weun.week}}" wx:key="date" class="weun-day">
-            <view class="weun-bar-bg">
-              <view class="weun-bar" style="height:{{item.pct}}%"></view>
-            </view>
-            <text class="weun-date">{{item.label}}</text>
-          </view>
-        </view>
-        <button class="btn btn-ghost btn-sm mt-16" wx:if="{{!weunRecorded}}" bindtap="saveSteps" disabled="{{busy}}">把今天的步数记入档案</button>
-        <view class="t-mini mt-8" wx:else>今天已在案 ✓</view>
+      <view class="row between">
+        <text class="t-body">微信运动（步数）</text>
+        <text class="tag {{weun ? 'tag-green' : ''}}">{{weun ? '已授权' : '未读取'}}</text>
       </view>
-      <button class="btn btn-primary weun-btn mt-16" wx:else bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读今日步数（微信运动）'}}</button>
+      <view class="t-mini mt-8">要读取需要你点头授权；读取的是微信记的步数，不是手机健康库。</view>
+
+      <view class="divider"></view>
+      <view class="row between">
+        <text class="t-body">iPhone「健康」库（用药 / 睡眠 / 体重）</text>
+        <text class="tag">读不到</text>
+      </view>
+      <view class="t-mini mt-8">系统限制：小程序拿不到 iPhone 健康库的这些数据，这一项不是没授权，是读不了。用药、睡眠、体重在「记录」页手工记一笔即可。</view>
     </view>
 
     <view class="section">
-      <text class="section-title">手动记一笔</text>
+      <text class="section-title">今日运动量（脱敏）</text>
     </view>
     <view class="card">
-      <view class="row wrap gap-8">
-        <view wx:for="{{healthTypes}}" wx:key="*this" class="{{healthTypeIdx === index ? 'chip chip-on' : 'chip'}}" bindtap="pickHealthType" data-idx="{{index}}">{{item}}</view>
-      </view>
-      <view class="mt-16">
-        <input class="input" value="{{healthText}}" bindinput="onHealthText" placeholder="{{healthTypes[healthTypeIdx]}}，例如：早上 8 点吃了降压药" maxlength="60" />
-      </view>
-      <button class="btn btn-primary weun-btn mt-16" bindtap="saveHealth" disabled="{{healthSaving}}">{{healthSaving ? '记录中…' : '记入档案'}}</button>
+      <block wx:if="{{weun}}">
+        <view class="row between">
+          <text class="t-body">今天走了约 {{weun.step}} 步</text>
+          <text class="rec-kcal">≈ {{weun.kcal}} kcal</text>
+        </view>
+        <view class="t-mini mt-8">相当于快走约 {{weun.fastWalkMin}} 分钟。步数取整到百位，逐日明细不出本页。</view>
+        <button class="btn btn-ghost btn-sm mt-16" wx:if="{{!weunRecorded}}" bindtap="saveSteps" disabled="{{busy}}">把今天的量记入档案</button>
+        <view class="t-mini mt-8" wx:else>今天已在案 ✓</view>
+      </block>
+      <block wx:else>
+        <view class="t-mini">还没读取。点下面按钮并授权微信运动后，这里显示今天的量级。</view>
+        <button class="btn btn-primary weun-btn mt-16" bindtap="readWeRun" disabled="{{weunBusy}}">{{weunBusy ? '读取中…' : '读取今日步数（需授权）'}}</button>
+      </block>
+    </view>
+
+    <view class="section">
+      <text class="section-title">手工记健康</text>
+      <text class="section-more">在「记录」页完成</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">用药、睡眠、体重、其他身体情况，都在记录页写一句、选个「用药 / 睡眠 / 体重」标签即可，一样进档案、一样参与执笔对你的理解。</view>
+      <button class="btn btn-primary weun-btn mt-16" bindtap="goRecordHealth">去记录页记一笔</button>
     </view>
 
   </block>
@@ -154,13 +162,60 @@
 
     <view class="section">
       <text class="section-title">它现在这样理解你</text>
+      <text class="section-more">带匹配度</text>
     </view>
     <view class="card">
-      <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
-        <view class="dot"></view>
-        <text class="t-body grow">{{item}}</text>
+      <view wx:for="{{hints}}" wx:key="text" class="hint-score">
+        <view class="row between">
+          <text class="t-body grow">{{item.text}}</text>
+          <text class="t-mini">{{item.label}}</text>
+        </view>
+        <view class="hint-bar mt-8">
+          <view class="hint-fill" style="width:{{item.pct}}%"></view>
+        </view>
+        <text class="t-mini mt-8">{{item.pct}}%</text>
       </view>
       <view class="t-mini" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+      <view class="t-mini mt-8" wx:if="{{hintNote}}">{{hintNote}}</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">经验资产</text>
+      <text class="section-more">后台数据 · 只看方向</text>
+    </view>
+    <view class="card" wx:if="{{assetsStats}}">
+      <view class="row between">
+        <text class="t-body">{{assetsStats.total}} 条经验 · {{assetsStats.active}} 条在用</text>
+        <text class="t-mini">固化 {{assetsStats.solidified}} 条</text>
+      </view>
+      <view class="row between mt-16">
+        <text class="t-mini">采纳命中 {{assetsStats.hitPct}}</text>
+        <text class="t-mini">平均有效性 {{assetsStats.effPct}}</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{assetsStats.nextText}}">{{assetsStats.nextText}}</view>
+    </view>
+    <view class="card" wx:else>
+      <view class="t-mini">还没有经验数据。同类事情记够两次，会自动提炼成一条经验。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">个人简历</text>
+      <text class="section-more">原文进保险箱</text>
+    </view>
+    <view class="card">
+      <view class="t-mini">把简历交给执笔，它抹掉手机号、证件号、门牌这类信息后入库；敏感片段加密单独存放，读原文需要你亲手签授权。</view>
+      <view class="row wrap gap-8 mt-16">
+        <button class="btn btn-ghost btn-sm" bindtap="pickResumeFile">从聊天选文件（txt / md）</button>
+        <button class="btn btn-primary btn-sm" bindtap="submitResume" disabled="{{resumeBusy}}">{{resumeBusy ? '脱敏入库中…' : '存这份简历'}}</button>
+      </view>
+      <view class="mt-16">
+        <textarea class="input" value="{{resumeText}}" bindinput="onResumeText"
+                  placeholder="也可以直接把简历内容粘贴到这里" maxlength="20000" auto-height />
+      </view>
+      <view class="row wrap gap-8 mt-16" wx:if="{{resumeHits.length}}">
+        <text wx:for="{{resumeHits}}" wx:key="*this" class="tag tag-amber">{{item}} 已抹掉</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{resumeInfo}}">{{resumeInfo}}</view>
     </view>
 
     <view class="section">

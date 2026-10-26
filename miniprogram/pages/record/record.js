@@ -2,7 +2,7 @@ const app = getApp()
 const api = require('../../utils/api')
 const mock = require('../../utils/mock')
 
-const TAGS = ['胃不舒服', '一个人', '和朋友', '和家人', '熬夜', '上火', '没胃口']
+const TAGS = ['胃不舒服', '一个人', '和朋友', '和家人', '熬夜', '上火', '没胃口', '用药', '睡眠', '体重', '运动']
 
 const ACTION_LABEL = {
   created: '新建',
@@ -24,6 +24,7 @@ Page({
     busy: false,
     hint: '',
     dishes: [],
+    photoPath: '',
     recording: false,
     recLabel: '按住说话',
   },
@@ -150,7 +151,8 @@ Page({
   },
 
   async recognize(filePath) {
-    this.setData({ busy: true, hint: '正在认这盘菜…', dishes: [] })
+    // 照片先显示出来：用户能看到「拍的是这张」，照片本身不落盘
+    this.setData({ busy: true, hint: '正在认这盘菜…', dishes: [], photoPath: filePath })
     const base64 = await readBase64(filePath)
     if (!base64) {
       this.setData({ busy: false, hint: '这张照片读不出来，换一张试试' })
@@ -179,6 +181,11 @@ Page({
       dishes: r.dishes || [],
       hint: `认出了 ${r.dishes.length} 样，约 ${r.totalKcal} kcal。可以改，也可以删。`,
     })
+  },
+
+  // 拍照只是「看一眼、认一下」：确认完就清掉预览，原图不保存
+  clearPhoto() {
+    this.setData({ photoPath: '', dishes: [], hint: '照片已丢弃，没有保存。' })
   },
 
   // 按住说话：小程序录音要先有 scope.record 授权

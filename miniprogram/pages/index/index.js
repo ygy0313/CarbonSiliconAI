@@ -1,9 +1,10 @@
 const app = getApp()
 const api = require('../../utils/api')
+const capture = require('../../utils/capture')
 
-// 首页 = 一天里真正会碰到的六件事：历（今天什么日子）、食、动、程（要做什么）、饮、梦。
-// 一条原则：每个模块都有内容，而不是一排空按钮 —— 点进去是「换个说法」，
-// 不点也能直接看到今天的样子。所以首页是「结果 + 一个动作」，不是入口列表。
+// 首页 = 一天里真正会碰到的四件事：运（今天的运程：节气五行 + 日程）、
+// 味（今日食饮：吃什么 + 喝什么 + 顺手记一笔）、动（怎么动 + 今天已经动了多少）、梦。
+// 一条原则：每个模块都有内容，而不是一排空按钮。首页是「结果 + 一个动作」。
 
 // 五行只谈节奏方向，不谈吉凶 —— 与 fortune.agent 是同一条红线
 // WXSS 不支持中文类名，五行用英文类名上色（el → cls 预计算映射）
@@ -43,25 +44,38 @@ Page({
     quizDonePartially: false,
     quizDoneNum: 0,
     quizTotal: 12,
-    // ① 今日五行
+    // ① 运：今日五行（紧凑版）
     gz: null,
     pillars: [],
     elementBars: [],
     elementNote: '',
     termText: '',
-    // ② 今天吃什么
+    // ① 运：今日日程
+    agenda: { items: [], count: 0, headline: '', more: 0 },
+    // ② 味：今天吃什么
     meal: null,
     mealIdx: 1,
     mealCount: 0,
-    // ③ 动一动
+    // ② 味：喝点什么
+    wine: null,
+    // ② 味：顺手记一笔（写 · 拍 · 说）
+    tasteText: '',
+    tasteBusy: false,
+    tasteHint: '',
+    tastePhoto: '',
+    tasteDishes: [],
+    tasteSaving: false,
+    tasteRecording: false,
+    tasteRecLabel: '说',
+    // ③ 动：动一动
     move: null,
     moveIdx: 1,
     moveCount: 0,
-    // ④ 日程
-    agenda: { items: [], count: 0, headline: '', more: 0 },
-    // ⑤ 喝点什么
-    wine: null,
-    // ⑥ 记个梦
+    // ③ 动：微信运动（今天的实际运动量，脱敏展示）
+    werun: null,
+    werunBusy: false,
+    werunDone: false,
+    // ④ 梦
     dreamText: '',
     dream: null,
     dreamBusy: false,
@@ -90,6 +104,11 @@ Page({
 
   onPullDownRefresh() {
     this.load().finally(() => wx.stopPullDownRefresh())
+  },
+
+  onHide() {
+    // 切走时若还在录音，直接停掉，避免后台一直占着麦克风
+    if (this.data.tasteRecording) this.stopTasteRecord()
   },
 
   // ── 问候开场：按时间段说话 ──
@@ -165,7 +184,7 @@ Page({
     wx.navigateTo({ url: '/pages/legal/legal?doc=' + doc })
   },
 
-  // ── 主加载：身份 → 六个模块并行 ──
+  // ── 主加载：身份 → 四个模块并行 ──
   async load() {
     this.buildGreet()
     this.setData({ loading: true })
@@ -205,13 +224,14 @@ Page({
     const geo = await this.getUserLocation()
     this.setData({ geoState: geo ? 'ok' : 'denied' })
 
-    // 六个模块各拉各的，互不阻塞；任一失败只影响自己那一格
+    // 四个模块各拉各的，互不阻塞；任一失败只影响自己那一格
     await Promise.all([
       this.loadGanzhi(),
+      this.loadAgenda(),
       this.loadRec('meal', ASK.meal, geo),
       this.loadRec('move', ASK.move, geo),
       this.loadWine(),
-      this.loadAgenda(),
+      this.loadWeRun(),
     ])
   },
 
@@ -234,7 +254,7 @@ Page({
     }
   },
 
-  // ── ① 今日五行（公共历法信息，只谈节奏，不作预测）──
+  // ── ① 运：今日五行（公共历法信息，只谈节奏，不作预测）──
   async loadGanzhi() {
     try {
       const g = await api.getGanzhi(app.globalData.personId)
@@ -269,7 +289,35 @@ Page({
     }
   },
 
-  // ── ②③ 吃 / 动：一次编排拿回 3 个候选，「换一个」在本地轮换，不重新算 ──
+  // ── ① 运：今天要做的事，跟五行放在一起看 ──
+  async loadAgenda() {
+    try {
+      const r = await api.getAgenda(app.globalData.personId, 7)
+      const items = (r.todayItems || []).slice(0, 3).map(i => ({
+        id: i.id,
+        time: i.time || '待定',
+        title: i.title,
+        done: !!i.done,
+        cls: i.done ? 'ag-line is-done' : 'ag-line',
+      }))
+      const today = (r.counts && r.counts.today) || 0
+      const undone = items.filter(i => !i.done).length
+      this.setData({
+        agenda: {
+          items,
+          count: today,
+          more: Math.max(0, today - items.length),
+          headline: today
+            ? `今天 ${today} 件事${undone ? ' · 还有 ' + undone + ' 件没做' : ' · 都做完了'}`
+            : '今天空着',
+        },
+      })
+    } catch (_) {
+      this.setData({ agenda: { items: [], count: 0, more: 0, headline: '拿不到日程' } })
+    }
+  },
+
+  // ── ② 味：吃 / 动：一次编排拿回 3 个候选，「换一个」在本地轮换，不重新算 ──
   async loadRec(kind, text, geo) {
     try {
       // 首页推荐是「算给你看的」，不是「你说的话」，所以 remember:false 不写进记忆
@@ -314,35 +362,7 @@ Page({
     this.setData({ [kind]: list[idx], [kind + 'Idx']: idx + 1 })
   },
 
-  // ── ④ 日程：今天要做的事，直接摊在首页 ──
-  async loadAgenda() {
-    try {
-      const r = await api.getAgenda(app.globalData.personId, 7)
-      const items = (r.todayItems || []).slice(0, 3).map(i => ({
-        id: i.id,
-        time: i.time || '待定',
-        title: i.title,
-        done: !!i.done,
-        cls: i.done ? 'ag-line is-done' : 'ag-line',
-      }))
-      const today = (r.counts && r.counts.today) || 0
-      const undone = items.filter(i => !i.done).length
-      this.setData({
-        agenda: {
-          items,
-          count: today,
-          more: Math.max(0, today - items.length),
-          headline: today
-            ? `今天 ${today} 件事${undone ? ' · 还有 ' + undone + ' 件没做' : ' · 都做完了'}`
-            : '今天空着',
-        },
-      })
-    } catch (_) {
-      this.setData({ agenda: { items: [], count: 0, more: 0, headline: '拿不到日程' } })
-    }
-  },
-
-  // ── ⑤ 喝点什么（选酒不报价，只给价位带 + 以店铺为准）──
+  // ── ② 味：喝点什么（选酒不报价，只给价位带 + 以店铺为准）──
   async loadWine() {
     try {
       const r = await api.orchestrate(app.globalData.personId, ASK.wine, [], { geo: null, remember: false })
@@ -370,7 +390,248 @@ Page({
     }
   },
 
-  // ── ⑥ 记个梦：只拆意象与情绪，不解梦 ──
+  // ── ② 味：顺手记一笔（写 · 拍 · 说）──
+  // 与记录页同一套能力，只是长在味模块里：照片只用来认菜，认完即丢。
+  onTasteText(e) {
+    this.setData({ tasteText: e.detail.value })
+  },
+
+  pickTastePhoto() {
+    if (this.data.tasteBusy) return
+    const that = this
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera', 'album'],
+      sizeType: ['compressed'],
+      success(res) {
+        const file = res.tempFiles && res.tempFiles[0]
+        if (file) that.tasteRecognize(file.tempFilePath)
+      },
+      fail(e) {
+        if (e && /cancel/.test(e.errMsg || '')) return
+        that.setData({ tasteHint: '没打开相机，检查一下权限再试' })
+      },
+    })
+  },
+
+  async tasteRecognize(filePath) {
+    this.setData({ tasteBusy: true, tasteHint: '正在认这盘菜…', tastePhoto: filePath, tasteDishes: [] })
+    const base64 = await capture.readBase64(filePath)
+    if (!base64) {
+      this.setData({ tasteBusy: false, tasteHint: '这张照片读不出来，换一张试试' })
+      return
+    }
+
+    let r
+    try {
+      r = await api.recognizeMeal(app.globalData.personId, `data:image/jpeg;base64,${base64}`, capture.mealLabel())
+    } catch (err) {
+      this.setData({ tasteBusy: false, tasteHint: err.message || '识图没通，先自己写一句' })
+      return
+    }
+
+    if (!r.ok) {
+      this.setData({ tasteBusy: false, tasteHint: r.reason || '这次没认出来', tasteDishes: [] })
+      return
+    }
+
+    const prev = (this.data.tasteText || '').trim()
+    this.setData({
+      tasteBusy: false,
+      tasteText: (prev ? `${prev}。${r.sentence}` : r.sentence).slice(0, 300),
+      tasteDishes: r.dishes || [],
+      tasteHint: `认出了 ${r.dishes.length} 样，约 ${r.totalKcal} kcal。照片没有保存。`,
+    })
+  },
+
+  async startTasteRecord() {
+    if (this.data.tasteBusy || this.data.tasteRecording) return
+    const granted = await capture.ensureRecordAuth()
+    if (!granted) {
+      this.setData({ tasteHint: '没拿到麦克风权限，也可以用打字' })
+      return
+    }
+    if (!this._tasteRecorder) this._tasteRecorder = capture.attachRecorder(this)
+    if (!this._tasteRecorder) {
+      this.setData({ tasteHint: '这台设备不支持录音，用打字吧' })
+      return
+    }
+
+    this._tasteStart = Date.now()
+    this.setData({ tasteRecording: true, tasteRecLabel: '停', tasteHint: '正在录音…' })
+    this._tasteTimer = setInterval(() => {
+      const sec = Math.floor((Date.now() - this._tasteStart) / 1000)
+      if (sec >= 60) this.stopTasteRecord()
+      else this.setData({ tasteRecLabel: `${sec}"` })
+    }, 500)
+
+    this._tasteRecorder.start({
+      duration: 60000,
+      format: 'mp4',
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      encodeBitRate: 48000,
+    })
+  },
+
+  stopTasteRecord() {
+    if (!this.data.tasteRecording) return
+    this.clearTasteTimer()
+    this.setData({ tasteRecording: false, tasteRecLabel: '说', tasteBusy: true, tasteHint: '正在转成文字…' })
+    if (this._tasteRecorder) this._tasteRecorder.stop()
+  },
+
+  cancelTasteRecord() {
+    if (!this.data.tasteRecording) return
+    this.clearTasteTimer()
+    this._tasteDiscard = true
+    this.setData({ tasteRecording: false, tasteRecLabel: '说', tasteHint: '' })
+    if (this._tasteRecorder) this._tasteRecorder.stop()
+  },
+
+  clearTasteTimer() {
+    if (this._tasteTimer) {
+      clearInterval(this._tasteTimer)
+      this._tasteTimer = null
+    }
+  },
+
+  async onCaptureStop(res) {
+    if (this._tasteDiscard) {
+      this._tasteDiscard = false
+      this.setData({ tasteBusy: false })
+      return
+    }
+    const filePath = res && res.tempFilePath
+    if (!filePath) {
+      this.setData({ tasteBusy: false, tasteHint: '没录到声音，再试一次' })
+      return
+    }
+    // 用毫秒判断：四舍五入会把 400ms 抹成 0 秒，「太短」就永远拦不住
+    const ms = Number(res && res.duration) || 0
+    if (ms && ms < 1000) {
+      this.setData({ tasteBusy: false, tasteHint: '太短了，按住多说两句' })
+      return
+    }
+
+    const base64 = await capture.readBase64(filePath)
+    if (!base64) {
+      this.setData({ tasteBusy: false, tasteHint: '这段录音读不出来，重录一次' })
+      return
+    }
+
+    let r
+    try {
+      r = await api.transcribe(app.globalData.personId, base64, 'audio/mp4')
+    } catch (err) {
+      this.setData({ tasteBusy: false, tasteHint: err.message || '语音没通，先打字' })
+      return
+    }
+
+    if (!r.ok) {
+      this.setData({ tasteBusy: false, tasteHint: r.reason || '没听清，再说一遍' })
+      return
+    }
+
+    const prev = (this.data.tasteText || '').trim()
+    this.setData({
+      tasteBusy: false,
+      tasteText: (prev ? prev + '。' + r.text : r.text).slice(0, 300),
+      tasteHint: '转好了，有不对的地方直接改。',
+    })
+  },
+
+  onCaptureError(err) {
+    this.clearTasteTimer()
+    this.setData({
+      tasteRecording: false,
+      tasteBusy: false,
+      tasteRecLabel: '说',
+      tasteHint: '录音出错了：' + ((err && err.errMsg) || '未知原因'),
+    })
+  },
+
+  async saveTaste() {
+    const text = (this.data.tasteText || '').trim()
+    if (!text) {
+      wx.showToast({ title: '写点什么再存', icon: 'none' })
+      return
+    }
+    if (!app.guardLegal()) return this.reopenLegal()
+    this.setData({ tasteSaving: true })
+    try {
+      await api.record(app.globalData.personId, text, ['吃喝'])
+      this.setData({ tasteText: '', tasteHint: '', tastePhoto: '', tasteDishes: [] })
+      wx.showToast({ title: '记下了', icon: 'none' })
+      app.loadSilicon(true)
+    } catch (e) {
+      wx.showToast({ title: e.message || '没记上，稍后再试', icon: 'none' })
+    } finally {
+      this.setData({ tasteSaving: false })
+    }
+  },
+
+  // ── ③ 动：微信运动（只取今天，展示做了脱敏：步数取整到百位）──
+  loadWeRun() {
+    this.setData({ werunBusy: true })
+    return new Promise(resolve => {
+      wx.login({
+        success: lg => {
+          wx.getWeRunData({
+            success: run => {
+              api
+                .weRun({ code: lg.code, encryptedData: run.encryptedData, iv: run.iv })
+                .then(r => {
+                  if (!r || r.engine !== 'model' || !r.today) {
+                    this.setData({ werun: null, werunBusy: false })
+                    return resolve()
+                  }
+                  // 脱敏：步数取整到百位，卡路里取整到十位 —— 给量级，不给精确数字
+                  const step = Math.round((r.today.step || 0) / 100) * 100
+                  const kcal = Math.round((r.kcalEstimate || 0) / 10) * 10
+                  this.setData({
+                    werun: { step, kcal, fastWalkMin: r.fastWalkMin || 0 },
+                    werunBusy: false,
+                  })
+                  resolve()
+                })
+                .catch(() => {
+                  this.setData({ werun: null, werunBusy: false })
+                  resolve()
+                })
+            },
+            fail: () => {
+              // 未授权 / 模拟器没数据：静默降级，不打扰
+              this.setData({ werun: null, werunBusy: false })
+              resolve()
+            },
+          })
+        },
+        fail: () => {
+          this.setData({ werun: null, werunBusy: false })
+          resolve()
+        },
+      })
+    })
+  },
+
+  // 步数落档案：走同一条 records 流水线（脱敏 + 入库），记的是量级不是原文
+  recordSteps() {
+    const w = this.data.werun
+    if (!w || !w.step) return
+    this.setData({ werunBusy: true })
+    api
+      .record(app.globalData.personId, `今天微信运动约 ${w.step} 步，约 ${w.kcal} 千卡`, ['运动'])
+      .then(() => {
+        this.setData({ werunDone: true })
+        wx.showToast({ title: '已记入档案', icon: 'success' })
+      })
+      .catch(e => wx.showToast({ title: e.message || '记录失败', icon: 'none' }))
+      .finally(() => this.setData({ werunBusy: false }))
+  },
+
+  // ── ④ 梦：只拆意象与情绪，不解梦 ──
   onDreamText(e) {
     this.setData({ dreamText: e.detail.value })
   },
@@ -480,8 +741,9 @@ Page({
     wx.switchTab({ url: '/pages/record/record' })
   },
 
+  // 日程不再是 tab，从这里进二级页
   goAgenda() {
-    wx.switchTab({ url: '/pages/agenda/agenda' })
+    wx.navigateTo({ url: '/pages/agenda/agenda' })
   },
 
   goMine() {

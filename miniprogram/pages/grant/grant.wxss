@@ -318,3 +318,35 @@
   color: var(--text-3);
   flex-shrink: 0;
 }
+
+/* 八字紧凑版：日期 + 时辰一行两个 */
+.bz-compact {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+}
+.bz-compact .bz-item { flex: 1; }
+
+/* 「它现在这样理解你」：每条判断带匹配度条 */
+.hint-score {
+  padding: 16rpx 0;
+  border-bottom: 1rpx dashed var(--line);
+}
+.hint-score:last-child { border-bottom: none; }
+.hint-bar {
+  height: 10rpx;
+  background: var(--surface-2);
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.hint-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 6rpx;
+}
+
+/* 琥珀标签：脱敏命中提示 */
+.tag-amber {
+  color: var(--amber);
+  border: 1rpx solid var(--amber);
+}

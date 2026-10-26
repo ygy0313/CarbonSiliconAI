@@ -27,6 +27,12 @@
 
   <view wx:if="{{hint}}" class="t-mini mt-8">{{hint}}</view>
 
+  <!-- 拍的照片在这里回显：认完即可丢，原图不落盘 -->
+  <view wx:if="{{photoPath}}" class="photo-box mt-16">
+    <image class="photo-preview" src="{{photoPath}}" mode="aspectFill" bindtap="clearPhoto" />
+    <view class="t-mini mt-8">点照片丢弃。照片只在识别时用一下，不保存、不进档案。</view>
+  </view>
+
   <view wx:if="{{dishes.length}}" class="dish-box mt-16">
     <view class="row wrap">
       <text wx:for="{{dishes}}" wx:key="name" class="dish">{{item.name}} · {{item.portion}} · {{item.kcal}} kcal</text>

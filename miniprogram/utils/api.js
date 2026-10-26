@@ -120,6 +120,10 @@ module.exports = {
   transcribe: (personId, audio, mime) =>
     request(`/api/persons/${personId}/voice/transcribe`, { method: 'POST', data: { audio, mime }, timeout: 35000 }),
 
+  // ── 简历：原文进保险箱，主库只留脱敏版 ──
+  resume: (personId, text) =>
+    request(`/api/persons/${personId}/resume`, { method: 'POST', data: { text }, timeout: 20000 }),
+
   // ── 日程：用户认下的事 ──
   getAgenda: (personId, days) => request(`/api/persons/${personId}/agenda?days=${days || 7}`),
   addAgenda: (personId, payload) =>

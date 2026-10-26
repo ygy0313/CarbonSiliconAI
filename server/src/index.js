@@ -320,7 +320,8 @@ const routes = [
         conflicts,
         silicon: {
           completeness: silicon.completeness,
-          hints: silicon.traits.personaHints,
+          // personaHints 现在带分数对象，给记录页只留文本
+          hints: (silicon.traits.personaHints || []).map(h => (typeof h === 'string' ? h : h.text)),
           factCount: silicon.facts.length,
           memoryCount: silicon.traits.recordCount,
         },
@@ -330,6 +331,28 @@ const routes = [
           summary: extracted.summary,
           extractor: extracted.extractor,
         },
+      }
+    },
+  },
+  // ── 简历：原文进保险箱，主库只留脱敏版 ──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/resume$/,
+    bodyLimit: 256 * 1024,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const text = requireString(body.text, 'text', 20000)
+      // 复用记录流水线：脱敏 → 原文加密 → 落 episode → 顺手抽事实（城市等）
+      const extracted = await extract({ text: `【简历】${text}`, tags: ['简历'] })
+      const { episode, factChanges } = recordEpisode(repos, params[0], extracted, 'resume')
+      const silicon = compileSilicon(repos, params[0])
+      return {
+        episode: { id: episode.id, summary: episode.summary, tags: episode.tags },
+        factChanges,
+        redaction: episode.redaction || { hits: [], sealed: !!episode.rawCipher },
+        completeness: silicon.completeness,
+        notice:
+          '简历原文已抹掉手机号、证件号、门牌这类信息再入库，敏感片段加密单独存放，读它需要你亲手签授权。',
       }
     },
   },

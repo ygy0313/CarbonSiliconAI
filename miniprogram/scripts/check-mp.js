@@ -80,15 +80,19 @@ function main() {
   }
   ok('页面目录都已注册进 pages', notRegistered.length === 0, notRegistered.join(', '))
 
-  ok('经验页已注册', pages.includes('pages/assets/assets'))
+  ok('经验页已下线（数据收进「我的」）', !pages.includes('pages/assets/assets'))
+  ok('档案页目录已删除', !fs.existsSync(path.join(MP, 'pages/assets')))
+  ok('日程页保留为二级页（不再占 tab）', pages.includes('pages/agenda/agenda'))
   ok('条款页已注册', pages.includes('pages/legal/legal'))
 
-  console.log('\n【2】tabBar')
+  console.log('\n【2】tabBar：三大入口')
   const tabs = (app && app.tabBar && app.tabBar.list) || []
-  ok('tabBar 2-5 项', tabs.length >= 2 && tabs.length <= 5, `tabs=${tabs.length}`)
+  ok('tabBar 恰好三项（执笔 / 记录 / 我的）', tabs.length === 3, `tabs=${tabs.length}`)
+  ok('三入口依次是 执笔·记录·我的',
+    tabs.map(t => t.text).join(',') === '执笔,记录,我的',
+    tabs.map(t => t.text).join(','))
   const badTab = tabs.filter(t => pages.indexOf(t.pagePath) === -1)
   ok('每个 tab 都在 pages 里', badTab.length === 0, badTab.map(t => t.pagePath).join(', '))
-  ok('经验 tab 已加入', tabs.some(t => t.pagePath === 'pages/assets/assets'))
 
   console.log('\n【3】关键配置')
   ok('开启组件按需注入', app && app.lazyCodeLoading === 'requiredComponents', String(app && app.lazyCodeLoading))
@@ -96,69 +100,31 @@ function main() {
   ok('project.config.json 指向当前目录', proj && (proj.miniprogramRoot === './' || !proj.miniprogramRoot), String(proj && proj.miniprogramRoot))
   ok('小程序根目录就是 config 所在目录', fs.existsSync(path.join(MP, 'app.json')))
 
-  console.log('\n【4】经验页：数据映射')
-  const assets = loadPage('pages/assets/assets.js')
-  ok('初始 loading 为 true', assets.data.loading === true)
-  ok('初始 groups 为空数组', Array.isArray(assets.data.groups) && assets.data.groups.length === 0)
-
-  const fakeAssets = {
-    total: 3, active: 1, dormant: 1, proposed: 1, archived: 0, solidified: 1,
-    appliedTotal: 7, hitRate: 0.71, avgEffectiveness: 0.62,
-    growth: { last7: 1, last30: 3 },
-    criteria: { version: 2, confirmedBy: 'user', thresholds: { promote: 0.8, archive: 0.3, minSamples: 4 } },
-    nextAction: { kind: 'keep', text: '继续记录' },
-  }
-  const fakeList = [
-    { id: 'x1', status: 'proposed', rule: '规则一', flow: '0 次应用', source: 'reflect', effectiveness: 0.5, solidified: false },
-    { id: 'x2', status: 'active', rule: '规则二', flow: '3 次应用 / 2 次奏效', source: 'seed', effectiveness: 0.74, solidified: true },
-    { id: 'x3', status: 'dormant', rule: '规则三', flow: '2 次应用 / 0 次奏效', source: 'manual', effectiveness: 0.2, solidified: false },
-  ]
-  assets.render(fakeAssets, fakeList)
-
-  ok('三个分组都建出来', assets.data.groups.length === 3, `groups=${assets.data.groups.length}`)
-  ok('分组顺序为 待确认 → 可用 → 休眠',
-    assets.data.groups.map(g => g.key).join(',') === 'proposed,active,dormant',
-    assets.data.groups.map(g => g.key).join(','))
-
-  const active = assets.data.groups.find(g => g.key === 'active')
-  const row = active && active.items[0]
-  ok('有效性换算成整数百分比', row && row.pct === 74, row && String(row.pct))
-  ok('高分档标 hi', row && row.barCls === 'hi', row && row.barCls)
-  ok('可用态给三个操作', row && row.acts.length === 3, row && String(row.acts.length))
-  ok('固化标记透出', row && row.solidified === true)
-
-  const dormant = assets.data.groups.find(g => g.key === 'dormant')
-  const dRow = dormant && dormant.items[0]
-  ok('低分档标 lo', dRow && dRow.barCls === 'lo', dRow && dRow.barCls)
-  ok('休眠态给启用与归档', dRow && dRow.acts.map(a => a.label).join(',') === '启用,归档')
-
-  const proposed = assets.data.groups.find(g => g.key === 'proposed')
-  ok('待确认只给「确认」一个操作', proposed && proposed.items[0].acts.length === 1)
-
-  ok('奏效率显示为百分比', assets.data.hitPct === '71%', assets.data.hitPct)
-  ok('平均有效性显示为百分比', assets.data.effPct === '62%', assets.data.effPct)
-  ok('标准版本透出', assets.data.critVersion === 2, String(assets.data.critVersion))
-  ok('用户确认过的标准要标出来', assets.data.critConfirmed === '你确认过', assets.data.critConfirmed)
-  ok('阈值换算成百分数填进输入框', assets.data.critPromote === '80' && assets.data.critArchive === '30', `${assets.data.critPromote}/${assets.data.critArchive}`)
-  ok('空分组被过滤掉', assets.render({ ...fakeAssets, total: 0 }, []) === undefined && assets.data.groups.length === 0)
-
-  ok('缺少 hitRate 时显示占位符', (() => {
-    assets.render({ ...fakeAssets, hitRate: null, avgEffectiveness: null }, [])
-    return assets.data.hitPct === '—' && assets.data.effPct === '—'
+  console.log('\n【4】「我的」页：经验资产摘要与简历入口')
+  const mineAssets = loadPage('pages/grant/grant.js')
+  ok('经验摘要只看总数与方向（loadAssetsStats）', typeof mineAssets.loadAssetsStats === 'function')
+  ok('初始无假数据（拿不到就不显示卡片）', mineAssets.data.assetsStats === null)
+  ok('简历入口三件套：选文件 / 粘贴 / 提交',
+    typeof mineAssets.pickResumeFile === 'function' && typeof mineAssets.onResumeText === 'function' && typeof mineAssets.submitResume === 'function')
+  ok('简历初始为空、不假装已上传', mineAssets.data.resumeText === '' && mineAssets.data.resumeInfo === '')
+  ok('简历文本在 JS 层限长（20000，与后端一致）', (() => {
+    mineAssets.setData({ resumeText: 'x'.repeat(10) })
+    return mineAssets.data.resumeText.length === 10
   })())
 
-  console.log('\n【5】双环：改标准要先拦住不合理的值')
-  const before = assets.data.groups.length
-  assets.setData({ critPromote: '20', critArchive: '60', critSamples: '3' })
-  assets.saveCriteria()
-  ok('固化线低于休眠线时拒绝保存', assets.data.hint.includes('固化线'), assets.data.hint)
-  assets.setData({ critPromote: '120', critArchive: '20', critSamples: '3' })
-  assets.saveCriteria()
-  ok('超过 100 分时拒绝保存', assets.data.hint.includes('0-100'), assets.data.hint)
-  assets.setData({ critPromote: '80', critArchive: '20', critSamples: '0' })
-  assets.saveCriteria()
-  ok('样本数为 0 时拒绝保存', assets.data.hint.includes('1-50'), assets.data.hint)
-  ok('拒绝时不会误改数据', assets.data.groups.length === before)
+  console.log('\n【5】「我的」页：理解你带匹配度 / 健康授权化 / 八字自动生成')
+  ok('理解你初始为空、带口径说明字段', Array.isArray(mineAssets.data.hints) && mineAssets.data.hints.length === 0 && 'hintNote' in mineAssets.data)
+  ok('匹配度条在 WXML 里渲染', (() => {
+    const wxml = fs.readFileSync(path.join(MP, 'pages/grant/grant.wxml'), 'utf8')
+    return wxml.includes('hint-fill') && wxml.includes('hint-bar') && wxml.includes('item.pct')
+  })())
+  ok('健康段不再有手工录入（统一去记录页）', typeof mineAssets.saveHealth === 'undefined' && typeof mineAssets.pickHealthType === 'undefined')
+  ok('健康段保留微信运动读取与落档案', typeof mineAssets.readWeRun === 'function' && typeof mineAssets.saveSteps === 'function')
+  ok('健康段给「去记录页」入口', typeof mineAssets.goRecordHealth === 'function')
+  ok('八字改动自动生成（无重新生成按钮）', typeof mineAssets.autoBazi === 'function' && typeof mineAssets.saveBazi === 'function')
+  ok('三段已改为 档案·健康·数据',
+    mineAssets.data.segs.map(s => s.label).join(',') === '档案,健康,数据',
+    mineAssets.data.segs.map(s => s.label).join(','))
 
   console.log('\n【6】记录页：拍照与语音入口')
   const record = loadPage('pages/record/record.js')
@@ -222,8 +188,8 @@ function main() {
   ok('我的页有昵称设置', typeof mine.setNickname === 'function')
   ok('时辰选择器含「不知道」+ 十二时辰', (mine.data.hourOptions || []).length === 13)
   ok('一键看 Prompt（自动签票）', typeof mine.viewMyPrompt === 'function' && typeof mine.signTicket === 'function')
-  ok('健康卡：微信运动 + 手动记', typeof mine.readWeRun === 'function' && typeof mine.saveHealth === 'function' && typeof mine.saveSteps === 'function')
-  ok('健康类型含用药/睡眠', JSON.stringify(mine.data.healthTypes).includes('用药') && JSON.stringify(mine.data.healthTypes).includes('睡眠'))
+  ok('健康卡：微信运动读取 + 脱敏落档案', typeof mine.readWeRun === 'function' && typeof mine.saveSteps === 'function')
+  ok('手工健康录入已移到记录页（我的页不再有）', typeof mine.saveHealth === 'undefined')
   ok('最近记忆已迁入我的页', typeof mine.relTime === 'function' && Array.isArray(mine.data.recent))
   ok('授权记录改名（不再是票据术语）', typeof mine.revoke === 'function' && typeof mine.exportMine === 'function')
   ok('命盘初始为空态（未录入不假装有盘）', mine.data.chart === null)
@@ -253,18 +219,36 @@ function main() {
   ok('我的页含 12 维兜底维度', /FALLBACK_DIMS/.test(fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8')))
   ok('我的页无跨页跳档案的残留', !fs.readFileSync(path.join(MP, 'pages/grant/grant.js'), 'utf8').includes('pages/profile'))
 
-  console.log('\n【11】首页六模块：历 / 食 / 动 / 程 / 饮 / 梦')
+  console.log('\n【11】首页四模块：运 / 味 / 动 / 梦 + 内联输入')
   const idxWxml2 = fs.readFileSync(path.join(MP, 'pages/index/index.wxml'), 'utf8')
-  const mods = ['今日五行', '今天吃什么', '动一动', '日程', '喝点什么', '记个梦']
+  const mods = ['今日运程', '今日食饮', '动一动', '记个梦']
   const missingMods = mods.filter(m => !idxWxml2.includes(m))
-  ok('六个模块标题都在', missingMods.length === 0, missingMods.join('、'))
-  const iconChars = ['历', '食', '动', '程', '饮', '梦']
+  ok('四个模块标题都在', missingMods.length === 0, missingMods.join('、'))
+  const iconChars = ['运', '味', '动', '梦']
   const missingIcons = iconChars.filter(c => !idxWxml2.includes(`class="mod-icon">${c}<`))
-  ok('六个模块各有一个印章图标（历/食/动/程/饮/梦）', missingIcons.length === 0, missingIcons.join('、'))
-  ok('模块头不再是旧的「现在要做什么」', !idxWxml2.includes('现在要做什么'))
-  ok('快捷入口网格已去掉（与模块重复）', !idxWxml2.includes('quick-grid'))
-  ok('首页按模块取数据', ['loadGanzhi', 'loadRec', 'loadWine', 'loadAgenda', 'submitDream'].every(k => typeof idx[k] === 'function'))
+  ok('四个模块各有一个印章图标（运/味/动/梦）', missingIcons.length === 0, missingIcons.join('、'))
+  ok('旧模块头已下线（历/程/饮 不再单独成格）', ['>历<', '>程<', '>饮<', '>食<'].every(c => !idxWxml2.includes(`class="mod-icon">${c.slice(1)}`)))
+  ok('运程模块合并了五行与日程', idxWxml2.includes('gz-pillars') && idxWxml2.includes('agenda.headline'))
+  ok('食饮模块合并了吃什么与喝什么', idxWxml2.includes('meal.title') && idxWxml2.includes('wine.title'))
+  ok('内联记一笔三件套（拍 / 说 / 存）',
+    idxWxml2.includes('pickTastePhoto') && idxWxml2.includes('startTasteRecord') && idxWxml2.includes('saveTaste'))
+  ok('拍的照片在页面里回显', idxWxml2.includes('taste-photo'))
+  ok('运动模块显示今日实际消耗', idxWxml2.includes('werun.step') && idxWxml2.includes('werun.kcal'))
+  ok('日程是二级页（navigateTo 而非 switchTab）', (() => {
+    const src = fs.readFileSync(path.join(MP, 'pages/index/index.js'), 'utf8')
+    return src.includes("navigateTo({ url: '/pages/agenda/agenda' })") && !src.includes("switchTab({ url: '/pages/agenda/agenda' })")
+  })())
+  ok('共享输入能力在 utils/capture.js', fs.existsSync(path.join(MP, 'utils/capture.js')))
+  ok('首页按模块取数据', ['loadGanzhi', 'loadRec', 'loadWine', 'loadAgenda', 'submitDream', 'loadWeRun', 'recordSteps'].every(k => typeof idx[k] === 'function'))
   ok('吃与动可以本地换一条', typeof idx.nextRec === 'function')
+  ok('记录页有照片回显与丢弃', (() => {
+    const wxml = fs.readFileSync(path.join(MP, 'pages/record/record.wxml'), 'utf8')
+    return wxml.includes('photo-preview') && typeof record.clearPhoto === 'function'
+  })())
+  ok('记录页健康标签齐备（用药/睡眠/体重/运动）', (() => {
+    const src = fs.readFileSync(path.join(MP, 'pages/record/record.js'), 'utf8')
+    return ['用药', '睡眠', '体重', '运动'].every(t => src.includes(`'${t}'`))
+  })())
 
   const agenda = loadPage('pages/agenda/agenda.js')
   ok('日程页有加载/新增/勾完/删除', ['load', 'save', 'toggle', 'remove'].every(k => typeof agenda[k] === 'function'))

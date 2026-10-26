@@ -88,3 +88,16 @@
   padding: 6rpx 12rpx;
   margin: 0 10rpx 10rpx 0;
 }
+
+/* 照片回显：拍完能看到，点一下丢弃 */
+.photo-box {
+  padding: 16rpx;
+  border: 1rpx dashed var(--line);
+  border-radius: 14rpx;
+}
+.photo-preview {
+  width: 260rpx;
+  height: 260rpx;
+  border-radius: 12rpx;
+  display: block;
+}

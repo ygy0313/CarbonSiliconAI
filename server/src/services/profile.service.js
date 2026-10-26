@@ -134,25 +134,60 @@ function computeTraits(repos, personId) {
     topTags,
     gatherCount,
     acceptRate,
-    // 人格描述：给前端展示「执笔现在有多像你」
-    personaHints: buildPersonaHints({ eps, topTags, acceptRate, gatherCount }),
+    // 人格描述：给前端展示「执笔现在有多像你」——每条带匹配度，
+    // 分数 = 这条判断背后有多少条你的记录在支撑（evidence），不是准确率。
+    personaHints: buildPersonaHints({ eps, topTags, acceptRate, gatherCount, decidedCount: decided.length }),
+    hintNote: '分数表示这条判断背后有多少条你的记录在支撑，不是准确率。分数低，多记几笔它会自己长。',
   }
 }
 
-function buildPersonaHints({ eps, topTags, acceptRate, gatherCount }) {
-  const hints = []
-  if (eps.length === 0) return ['还没有记录，执笔对你还一无所知']
+// 匹配度换算：evidence = 支撑这条判断的记录条数。
+// 35 起步（有一条就敢说），每条 +15，封顶 95 —— 永不给 100，因为人会变。
+function hintScore(evidence) {
+  const pct = Math.max(30, Math.min(95, 35 + evidence * 15))
+  const label = pct >= 80 ? '高度吻合' : pct >= 60 ? '比较吻合' : pct >= 45 ? '部分吻合' : '初步印象'
+  return { pct, label }
+}
 
-  const tags = topTags.map(t => t[0])
-  if (tags.includes('胃敏感') && (tags.includes('重辣') || tags.includes('微辣'))) {
-    hints.push('你能吃辣但胃不太扛得住 —— 这是个需要你自己确认的矛盾点')
+function buildPersonaHints({ eps, topTags, acceptRate, gatherCount, decidedCount }) {
+  if (eps.length === 0) {
+    return [{ text: '还没有记录，执笔对你还一无所知', pct: 0, label: '一片空白' }]
   }
-  if (tags.includes('胃敏感')) hints.push('点菜时会自动帮你避开重油重辣')
-  if (gatherCount >= 3) hints.push('你是熟人局的常客，组局偏好已经比较稳定')
-  if (gatherCount === 0 && eps.length > 5) hints.push('你记录了很多一个人吃的饭，社交场景的记录偏少')
-  if (acceptRate !== null && acceptRate < 0.4) hints.push('你对推荐挑得比较细，说明现在的推荐还不够准')
-  if (acceptRate !== null && acceptRate > 0.8) hints.push('你采纳率很高，执笔已经开始摸到你的口味了')
-  if (eps.length >= 10) hints.push(`已经积累 ${eps.length} 条记忆，可以开始做跨场景推荐`)
+
+  const countTag = name => eps.reduce((s, e) => s + (((e.tags || []).indexOf(name)) >= 0 ? 1 : 0), 0)
+  const tags = topTags.map(t => t[0])
+  const hints = []
+
+  const countWei = countTag('胃敏感')
+  const countLa = countTag('重辣') + countTag('微辣')
+  if (tags.includes('胃敏感') && countLa > 0) {
+    const s = hintScore(countWei + countLa)
+    hints.push({ text: '你能吃辣但胃不太扛得住 —— 这是个需要你自己确认的矛盾点', ...s })
+  }
+  if (countWei > 0) {
+    const s = hintScore(countWei)
+    hints.push({ text: '点菜时会自动帮你避开重油重辣', ...s })
+  }
+  if (gatherCount >= 3) {
+    const s = hintScore(gatherCount)
+    hints.push({ text: '你是熟人局的常客，组局偏好已经比较稳定', ...s })
+  }
+  if (gatherCount === 0 && eps.length > 5) {
+    const s = hintScore(Math.round(eps.length / 4))
+    hints.push({ text: '你记录了很多一个人吃的饭，社交场景的记录偏少', ...s })
+  }
+  if (acceptRate !== null && acceptRate < 0.4) {
+    const s = hintScore(Math.max(1, decidedCount))
+    hints.push({ text: '你对推荐挑得比较细，说明现在的推荐还不够准', ...s })
+  }
+  if (acceptRate !== null && acceptRate > 0.8) {
+    const s = hintScore(Math.max(1, decidedCount))
+    hints.push({ text: '你采纳率很高，执笔已经开始摸到你的口味了', ...s })
+  }
+  if (eps.length >= 10) {
+    const s = hintScore(Math.round(eps.length / 5))
+    hints.push({ text: `已经积累 ${eps.length} 条记忆，可以开始做跨场景推荐`, ...s })
+  }
 
   return hints.slice(0, 4)
 }

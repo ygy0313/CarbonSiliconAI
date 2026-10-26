@@ -29,7 +29,7 @@ const HOUR_OPTIONS = [
   { label: '亥时 21-23', hour: 22 },
 ]
 
-const HEALTH_TYPES = ['用药', '睡眠', '体重', '其他']
+const HEALTH_TYPES = ['用药', '睡眠', '体重', '其他'] // 记录页的手工健康标签，与本页文案保持一致
 
 // WXSS 不支持中文类名，五行条用英文类名（与首页同一套映射）
 const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
@@ -54,7 +54,7 @@ const FALLBACK_DIMS = [
 
 const SEGS = [
   { key: 'file', label: '档案' },
-  { key: 'body', label: '身体' },
+  { key: 'body', label: '健康' },
   { key: 'data', label: '数据' },
 ]
 
@@ -80,17 +80,21 @@ Page({
     saving: false,
     chart: null,
     chartBars: [],
-    // ── 健康 ──
+    // ── 健康（只展示授权情况与脱敏摘要；手工记录统一在「记录」页）──
     weun: null,
     weunBusy: false,
     weunRecorded: false,
-    healthTypes: HEALTH_TYPES,
-    healthTypeIdx: 0,
-    healthText: '',
-    healthSaving: false,
-    // ── 理解你 / 记忆 ──
+    // ── 理解你（带匹配度）/ 记忆 ──
     hints: [],
+    hintNote: '',
     recent: [],
+    // ── 经验资产摘要（后台数据，只看总数与方向）──
+    assetsStats: null,
+    // ── 简历 ──
+    resumeText: '',
+    resumeBusy: false,
+    resumeInfo: '',
+    resumeHits: [],
     // ── 我的 Prompt / 授权 ──
     grants: [],
     audits: [],
@@ -143,14 +147,38 @@ Page({
       this.setData({
         offline: !!app.globalData.offline,
         completenessPct: Math.round((silicon.completeness || 0) * 100) + '',
-        hints: (silicon.traits && silicon.traits.personaHints) || [],
+        // personaHints 现在是 {text, pct, label} 对象；旧服务端兜底为字符串
+        hints: ((silicon.traits && silicon.traits.personaHints) || []).map(h =>
+          typeof h === 'string' ? { text: h, pct: 0, label: '' } : h
+        ),
+        hintNote: (silicon.traits && silicon.traits.hintNote) || '',
         recent,
       })
     } catch (_) {}
+    this.loadAssetsStats()
     try {
       const b = await api.getBazi(app.globalData.personId)
       if (b && b.configured) this.applyChart(b)
     } catch (_) {}
+  },
+
+  // 经验资产：后台数据只抽「总数 + 方向」，明细不再单独开页
+  async loadAssetsStats() {
+    try {
+      const a = await api.getExperienceAssets(app.globalData.personId)
+      this.setData({
+        assetsStats: {
+          total: a.total || 0,
+          active: a.active || 0,
+          solidified: a.solidified || 0,
+          hitPct: a.hitRate != null ? Math.round(a.hitRate * 100) + '%' : '—',
+          effPct: a.avgEffectiveness != null ? Math.round(a.avgEffectiveness * 100) + '%' : '—',
+          nextText: (a.nextAction && a.nextAction.text) || '',
+        },
+      })
+    } catch (_) {
+      this.setData({ assetsStats: null })
+    }
   },
 
   relTime(ts) {
@@ -317,22 +345,34 @@ Page({
     }
   },
 
-  // ── 八字录入 ──
+  // ── 八字：改完档案自动生成命盘（没有「重新生成」按钮）──
   onBirthDate(e) {
     this.setData({ birthDate: e.detail.value })
+    this.autoBazi()
   },
 
   onHourPick(e) {
     this.setData({ hourIdx: Number(e.detail.value) })
+    this.autoBazi()
   },
 
   onPlace(e) {
     this.setData({ birthPlace: e.detail.value })
   },
 
-  async saveBazi() {
+  onPlaceDone() {
+    this.autoBazi()
+  },
+
+  // 连续改动只在停下来 800ms 后算一次，避免选日期中途打四次接口
+  autoBazi() {
+    if (this._baziTimer) clearTimeout(this._baziTimer)
+    this._baziTimer = setTimeout(() => this.saveBazi(true), 800)
+  },
+
+  async saveBazi(silent) {
     if (!this.data.birthDate) {
-      wx.showToast({ title: '先选出生年月日', icon: 'none' })
+      if (!silent) wx.showToast({ title: '先选出生年月日', icon: 'none' })
       return
     }
     this.setData({ saving: true })
@@ -344,9 +384,10 @@ Page({
         place: this.data.birthPlace.trim() || undefined,
       })
       this.applyChart(r)
-      wx.showToast({ title: '命盘已生成', icon: 'success' })
+      if (!silent) wx.showToast({ title: '命盘已生成', icon: 'success' })
+      else app.loadSilicon(true)
     } catch (e) {
-      wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+      if (!silent) wx.showToast({ title: e.message || '保存失败', icon: 'none' })
     } finally {
       this.setData({ saving: false })
     }
@@ -371,6 +412,7 @@ Page({
   },
 
   // ── 健康：微信运动 ──
+  // 本页只展示「授权情况 + 脱敏摘要」：步数取整到百位，不给逐日明细。
   readWeRun() {
     this.setData({ weunBusy: true })
     const login = () => new Promise((resolve, reject) => wx.login({ success: r => resolve(r.code), fail: reject }))
@@ -382,10 +424,10 @@ Page({
           wx.showToast({ title: (r && r.reason) || '拿不到步数', icon: 'none' })
           return
         }
-        const week = (r.week || []).map(x => ({ ...x, label: x.date.slice(5) }))
-        const maxStep = Math.max(1, ...week.map(x => x.step))
-        week.forEach(x => { x.pct = Math.max(8, Math.round((x.step / maxStep) * 100)) })
-        this.setData({ weun: { ...r, week } })
+        // 脱敏：只留今天的量级，近 7 天明细不出本页
+        const step = Math.round((r.today && r.today.step || 0) / 100) * 100
+        const kcal = Math.round((r.kcalEstimate || 0) / 10) * 10
+        this.setData({ weun: { step, kcal, fastWalkMin: r.fastWalkMin || 0 } })
       })
       .catch(e => {
         const msg = (e && e.errMsg && /auth|denied/i.test(e.errMsg)) ? '需要授权微信运动' : ((e && e.message) || '读取失败')
@@ -397,10 +439,10 @@ Page({
   // 步数落档案：走同一条 records 流水线（脱敏 + 入库），记的是量级不是原文
   saveSteps() {
     const w = this.data.weun
-    if (!w || !w.today) return
+    if (!w || !w.step) return
     this.setData({ busy: true })
     api
-      .record(app.globalData.personId, `今天微信运动 ${w.today.step} 步，约 ${w.kcalEstimate} 千卡，相当于快走 ${w.fastWalkMin} 分钟`, ['健康', '运动'])
+      .record(app.globalData.personId, `今天微信运动约 ${w.step} 步，约 ${w.kcal} 千卡，相当于快走 ${w.fastWalkMin} 分钟`, ['健康', '运动'])
       .then(() => {
         this.setData({ weunRecorded: true })
         wx.showToast({ title: '已记入档案', icon: 'success' })
@@ -409,32 +451,68 @@ Page({
       .finally(() => this.setData({ busy: false }))
   },
 
-  // ── 健康：手动记（用药 / 睡眠 / 体重 / 其他）──
-  pickHealthType(e) {
-    this.setData({ healthTypeIdx: Number(e.currentTarget.dataset.idx) })
+  goRecordHealth() {
+    wx.switchTab({ url: '/pages/record/record' })
   },
 
-  onHealthText(e) {
-    this.setData({ healthText: e.detail.value })
+  // ── 简历：选文件或粘贴，原文进保险箱，主库只留脱敏版 ──
+  onResumeText(e) {
+    this.setData({ resumeText: e.detail.value })
   },
 
-  saveHealth() {
-    const text = (this.data.healthText || '').trim()
-    if (!text) {
-      wx.showToast({ title: '先写点内容', icon: 'none' })
+  pickResumeFile() {
+    const that = this
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['txt', 'md'],
+      success(res) {
+        const file = res.tempFiles && res.tempFiles[0]
+        if (!file) return
+        if (file.size > 200 * 1024) {
+          wx.showToast({ title: '文件太大（上限 200KB），粘贴文本也行', icon: 'none' })
+          return
+        }
+        const fs = wx.getFileSystemManager && wx.getFileSystemManager()
+        if (!fs || !fs.readFile) {
+          wx.showToast({ title: '这台设备读不了文件，直接粘贴文本吧', icon: 'none' })
+          return
+        }
+        fs.readFile({
+          filePath: file.path,
+          encoding: 'utf8',
+          success: r => that.setData({ resumeText: String(r.data || '').slice(0, 20000) }),
+          fail: () => wx.showToast({ title: '文件读不出来，直接粘贴文本吧', icon: 'none' }),
+        })
+      },
+      fail(e) {
+        if (e && /cancel/.test(e.errMsg || '')) return
+        wx.showToast({ title: '没选到文件，直接粘贴文本也行', icon: 'none' })
+      },
+    })
+  },
+
+  async submitResume() {
+    const text = (this.data.resumeText || '').trim()
+    if (text.length < 20) {
+      wx.showToast({ title: '简历内容太短，粘贴全文更好', icon: 'none' })
       return
     }
-    const type = this.data.healthTypes[this.data.healthTypeIdx]
-    this.setData({ healthSaving: true })
-    api
-      .record(app.globalData.personId, `${type}：${text}`, ['健康', type])
-      .then(() => {
-        this.setData({ healthText: '' })
-        wx.showToast({ title: '已记入档案', icon: 'success' })
-        this.loadMine()
+    if (!app.guardLegal()) return
+    this.setData({ resumeBusy: true, resumeInfo: '' })
+    try {
+      const r = await api.resume(app.globalData.personId, text)
+      this.setData({
+        resumeBusy: false,
+        resumeText: '',
+        resumeHits: ((r.redaction && r.redaction.hits) || []).map(h => `${h.label} ×${h.count}`),
+        resumeInfo: r.notice || '已入库（已脱敏）',
       })
-      .catch(e => wx.showToast({ title: e.message || '记录失败', icon: 'none' }))
-      .finally(() => this.setData({ healthSaving: false }))
+      wx.showToast({ title: '简历已记入', icon: 'success' })
+      app.loadSilicon(true)
+    } catch (e) {
+      this.setData({ resumeBusy: false, resumeInfo: e.message || '上传失败，稍后再试' })
+    }
   },
 
   // ── 我的 Prompt：自动签票 + 读取 ──
