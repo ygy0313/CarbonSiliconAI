@@ -1,12 +1,6 @@
 /* ── 问候开场 ───────────────────────────────────────── */
-.greet {
-  padding: 8rpx 4rpx 0;
-}
-.greet-date {
-  font-size: 24rpx;
-  color: var(--text-3);
-  letter-spacing: 1rpx;
-}
+.greet { padding: 8rpx 4rpx 0; }
+.greet-date { font-size: 24rpx; color: var(--text-3); letter-spacing: 1rpx; }
 .greet-hello {
   margin-top: 8rpx;
   font-size: 40rpx;
@@ -15,32 +9,120 @@
   line-height: 1.35;
 }
 
-/* ── 新人/老用户视角切换 ────────────────────────────── */
-.mode-toggle {
+/* ── 身份条（昵称，不显示真名）──────────────────────── */
+.id-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+.avatar {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: rgba(0, 112, 74, 0.1);
+  color: var(--green);
+  font-size: 30rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  padding: 10rpx 20rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.35);
+}
+.id-name { font-size: 30rpx; font-weight: 600; color: var(--text); }
+.id-name-empty { color: var(--text-3); font-weight: 500; }
+.id-sub { margin-top: 4rpx; font-size: 22rpx; color: var(--text-3); }
+.id-right { display: flex; flex-direction: column; align-items: flex-end; }
+.id-pct { font-size: 30rpx; font-weight: 600; color: var(--green); }
+.id-pct-label { font-size: 20rpx; color: var(--text-3); }
+.mode-toggle-sm {
+  padding: 8rpx 16rpx;
+  border: 1rpx solid var(--line);
   border-radius: 999rpx;
 }
-.mode-toggle-text {
-  font-size: 22rpx;
-  color: #d7e8dd;
-}
-.mode-switch-row {
+.mode-toggle-text-sm { font-size: 20rpx; color: var(--text-3); }
+
+/* ── 今日五行卡 ─────────────────────────────────────── */
+.gz-pillars {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 10rpx;
+  flex-direction: row;
+  gap: 16rpx;
 }
-.mode-switch {
+.gz-pillar {
+  flex: 1;
+  background: var(--paper, #FBFAF8);
+  border: 1rpx solid var(--line);
+  border-radius: 14rpx;
+  padding: 18rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gz-pillar-label { font-size: 20rpx; color: var(--text-3); }
+.gz-pillar-text {
+  margin-top: 6rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 2rpx;
+}
+.gz-pillar-el { margin-top: 2rpx; font-size: 20rpx; color: var(--green); }
+
+.gz-bars { margin-top: 28rpx; }
+.gz-bar-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14rpx;
+  padding: 6rpx 0;
+}
+.gz-bar-el {
+  width: 34rpx;
+  font-size: 24rpx;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.gz-bar-track {
+  flex: 1;
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--line);
+  overflow: hidden;
+}
+.gz-bar-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--green);
+  transition: width 0.3s ease;
+}
+.gz-bar-fill.gz-el-木 { background: #4E8C6A; }
+.gz-bar-fill.gz-el-火 { background: #B4553F; }
+.gz-bar-fill.gz-el-土 { background: #A9873F; }
+.gz-bar-fill.gz-el-金 { background: #8A8F92; }
+.gz-bar-fill.gz-el-水 { background: #3E6F8C; }
+.gz-bar-pct {
+  width: 68rpx;
+  text-align: right;
   font-size: 22rpx;
   color: var(--text-3);
-  padding: 6rpx 12rpx;
+  flex-shrink: 0;
+}
+.gz-note {
+  margin-top: 22rpx;
+  font-size: 26rpx;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.gz-disclaim {
+  margin-top: 12rpx;
+  font-size: 21rpx;
+  color: var(--text-3);
+  line-height: 1.6;
 }
 
-/* ── 新人引导卡：三步，做完打勾 ─────────────────────── */
-.onboard {
-  padding: 12rpx 24rpx;
-}
+/* ── 新人引导卡 ─────────────────────────────────────── */
+.onboard { padding: 12rpx 24rpx; }
 .step {
   display: flex;
   flex-direction: row;
@@ -54,7 +136,7 @@
   width: 52rpx;
   height: 52rpx;
   border-radius: 50%;
-  background: var(--green-dim, rgba(0, 112, 74, 0.1));
+  background: rgba(0, 112, 74, 0.1);
   color: var(--green);
   font-size: 26rpx;
   font-weight: 600;
@@ -63,92 +145,106 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.step.done .step-no {
-  background: var(--green);
-  color: #fff;
-}
+.step.done .step-no { background: var(--green); color: #fff; }
 .step-body { flex: 1; }
-.step-title {
-  font-size: 29rpx;
-  font-weight: 500;
-  color: var(--text);
-}
+.step-title { font-size: 29rpx; font-weight: 500; color: var(--text); }
 .step.done .step-title { color: var(--text-2); }
-.step-sub {
+.step-sub { margin-top: 6rpx; font-size: 23rpx; color: var(--text-3); line-height: 1.5; }
+.step-go { font-size: 24rpx; color: var(--green); flex-shrink: 0; }
+.onboard-note { padding: 8rpx 0 16rpx; font-size: 22rpx; color: var(--text-3); line-height: 1.6; }
+
+/* ── 今日推荐 ───────────────────────────────────────── */
+.rec-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+.rec-city {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--green);
+}
+.rec-note { font-size: 21rpx; color: var(--text-3); flex: 1; }
+.rec-geo { font-size: 21rpx; color: var(--amber, #96690F); }
+
+.rec-card {
+  background: var(--surface);
+  border-radius: 20rpx;
+  padding: 26rpx 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
+}
+.rec-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14rpx;
+}
+.rec-tag {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+}
+.rec-tag-eat { background: rgba(0, 112, 74, 0.1); color: var(--green); }
+.rec-tag-move { background: rgba(150, 105, 15, 0.12); color: var(--amber, #96690F); }
+.rec-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.rec-kcal {
+  font-size: 22rpx;
+  color: var(--green);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.rec-desc {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.rec-why {
   margin-top: 6rpx;
   font-size: 23rpx;
   color: var(--text-3);
-  line-height: 1.5;
-}
-.step-go {
-  font-size: 24rpx;
-  color: var(--green);
-  flex-shrink: 0;
-}
-.onboard-note {
-  padding: 8rpx 0 16rpx;
-  font-size: 22rpx;
-  color: var(--text-3);
   line-height: 1.6;
 }
-
-/* ── 主视觉块（深绿底，所有子元素用浅色系）───────── */
-.avatar-on-dark {
-  background: rgba(255, 255, 255, 0.14);
-  color: #e9f2ec;
-}
-.hero-pct {
-  font-size: 44rpx;
-  font-weight: 600;
-  color: #9fe3bd;
-  flex-shrink: 0;
-}
-.hero-bar {
-  height: 8rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.16);
-  overflow: hidden;
-}
-.hero-bar-fill {
-  height: 100%;
-  border-radius: 999rpx;
-  background: #7fd6a8;
-  transition: width 0.3s ease;
-}
-.hero-mini {
-  font-size: 22rpx;
-  color: #a8c0b4;
-  line-height: 1.6;
-}
-
-.dim-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-}
-.dim {
-  width: 56rpx;
-  height: 14rpx;
-  border-radius: 4rpx;
-  background: rgba(255, 255, 255, 0.16);
-}
-.dim.on { background: #7fd6a8; }
-.dim.weak { background: rgba(255, 255, 255, 0.5); }
-.dim.off { background: rgba(255, 255, 255, 0.16); }
-
-.hint-row {
+.rec-actions {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
   gap: 16rpx;
-  padding: 10rpx 0;
+  margin-top: 18rpx;
 }
-.hint-row .dot { margin-top: 14rpx; }
+.rec-btn {
+  font-size: 23rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--line);
+  color: var(--text-2);
+}
+.rec-btn-main {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.rec-empty {
+  padding: 24rpx;
+  font-size: 23rpx;
+  color: var(--text-3);
+  border: 1rpx dashed var(--line);
+  border-radius: 16rpx;
+  line-height: 1.6;
+}
 
+/* ── 快捷入口 ───────────────────────────────────────── */
 .quick-grid {
   display: flex;
   flex-direction: row;
-  /* 快捷入口会随着能力增加而变多，必须能换行 —— 一行硬塞 5 个会被压成竖排字 */
   flex-wrap: wrap;
   gap: 16rpx;
 }
@@ -165,17 +261,8 @@
   box-shadow: 0 1rpx 2rpx rgba(31, 35, 32, 0.04), 0 10rpx 30rpx rgba(31, 35, 32, 0.05);
 }
 .quick:active { background: var(--surface-2); }
-.quick-label {
-  font-size: 27rpx;
-  font-weight: 500;
-  color: var(--text);
-  line-height: 1.4;
-}
-.quick-arrow {
-  font-size: 24rpx;
-  color: var(--text-3);
-  margin-top: 14rpx;
-}
+.quick-label { font-size: 27rpx; font-weight: 500; color: var(--text); line-height: 1.4; }
+.quick-arrow { font-size: 24rpx; color: var(--text-3); margin-top: 14rpx; }
 
 .services-entry {
   margin-top: 16rpx;
@@ -184,14 +271,20 @@
   border-radius: 16rpx;
 }
 
-.memory {
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid var(--line);
+.hint-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 10rpx 0;
 }
+.hint-row .dot { margin-top: 14rpx; }
+
+.memory { padding: 18rpx 0; border-bottom: 1rpx solid var(--line); }
 .memory:last-child { border-bottom: none; padding-bottom: 0; }
 .memory:first-child { padding-top: 0; }
 
-/* ── 同意层：只挡住写，不挡住看 ─────────────────── */
+/* ── 同意层：只挡住写，不挡住看 ─────────────────────── */
 .ack-bar {
   margin-top: 8rpx;
   margin-bottom: 8rpx;
@@ -200,20 +293,15 @@
   border-radius: 14rpx;
   background: var(--amber-dim);
 }
-
 .ack-mask {
   position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; right: 0; top: 0; bottom: 0;
   z-index: 90;
   background: rgba(20, 24, 22, 0.45);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
 }
-
 .ack-panel {
   background: var(--surface);
   border-radius: 28rpx 28rpx 0 0;
@@ -221,19 +309,13 @@
   padding-bottom: calc(36rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--line);
 }
-
 .ack-title {
   font-size: 34rpx;
   color: var(--text);
   font-weight: 600;
   margin-bottom: 20rpx;
 }
-
-.ack-body {
-  display: flex;
-  flex-direction: column;
-}
-
+.ack-body { display: flex; flex-direction: column; }
 .ack-p {
   display: block;
   font-size: 26rpx;
@@ -241,19 +323,8 @@
   color: var(--text-2);
   margin-bottom: 14rpx;
 }
-
-.ack-links {
-  display: flex;
-  flex-direction: row;
-  margin: 6rpx 0 8rpx;
-}
-
-.ack-link {
-  font-size: 26rpx;
-  color: var(--green);
-  margin-right: 24rpx;
-}
-
+.ack-links { display: flex; flex-direction: row; margin: 6rpx 0 8rpx; }
+.ack-link { font-size: 26rpx; color: var(--green); margin-right: 24rpx; }
 .ack-decline {
   margin-top: 24rpx;
   text-align: center;

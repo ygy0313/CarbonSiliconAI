@@ -9,7 +9,7 @@ const { VENUE_LIBRARY } = require('../domain/taxonomy')
 async function run(ctx) {
   const { facts, entities, tags } = ctx
   const headcount = entities.headcount || Number(facts['social.groupSize']) || 6
-  const city = facts['life.city'] || '银川'
+  const city = ctx.geo?.city || facts['life.city'] || '银川'
   const budget = entities.budget || null
   const isBirthday = tags.includes('生日局')
 

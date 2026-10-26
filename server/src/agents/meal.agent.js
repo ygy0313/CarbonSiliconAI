@@ -203,12 +203,17 @@ async function run(ctx) {
       id: `meal_${dish.id}`,
       kind: i === 0 ? 'primary' : 'option',
       title: dish.name,
-      desc: `${dish.note} · 人均 ${dish.price} 元 · 约 ${dish.min} 分钟`,
+      desc: `${dish.note} · 人均 ${dish.price} 元 · 约 ${dish.min} 分钟 · 约 ${dish.kcal || 0} kcal`,
       why: finalWhy.length ? finalWhy : ['和你档案里的口味基本一致'],
       evidence: cited.slice(0, 2),
       score,
       source: '给您请安 · 膳食坊',
-      meta: { element: dish.element, taste: dish.taste, spicy: dish.spicy, price: dish.price, min: dish.min },
+      meta: {
+        element: dish.element, taste: dish.taste, spicy: dish.spicy,
+        price: dish.price, min: dish.min,
+        kcal: dish.kcal || null,
+        searchKeyword: `${dish.name} ${ctx.geo?.city || facts['life.city'] || ''}`.trim(),
+      },
     }
   })
 

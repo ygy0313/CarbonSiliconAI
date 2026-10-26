@@ -161,6 +161,9 @@ async function orchestrate(repos, personId, text, opts = {}) {
     tags: opts.tags || [],
     rawText: text,
     now,
+    // 定位（可选）：由接口层用 domain/geo.normalizeGeo 归一化后传入，
+    // 城市优先于档案里的 life.city —— 人在哪就按哪推荐。
+    geo: opts.geo || null,
     outputs,
   }
 

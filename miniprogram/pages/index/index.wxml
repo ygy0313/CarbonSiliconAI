@@ -4,75 +4,98 @@
     <text class="t-mini">还没同意隐私政策，记录暂不会保存 · 点这里看看</text>
   </view>
 
-  <!-- 问候开场：最贵的位置先跟人打招呼，不堆功能（对齐给您请安的开场方式） -->
+  <!-- 问候开场 -->
   <view class="greet">
     <view class="greet-date">{{greetDate}}</view>
     <view class="greet-hello">{{greetHello}}</view>
   </view>
 
-  <!-- 主视觉：一块深绿，把「你是谁 + 档案长到哪了」一次说清 -->
-  <view class="hero mt-8">
-    <view class="row gap-16">
-      <view class="avatar avatar-on-dark">{{initial}}</view>
-      <view class="grow">
-        <view class="hero-title">{{name}}</view>
-        <view class="hero-sub">{{identity}}</view>
-      </view>
-      <text class="hero-pct" wx:if="{{mode === 'old'}}">{{completenessPct}}%</text>
-      <view class="mode-toggle" bindtap="toggleMode" wx:else>
-        <text class="mode-toggle-text">测试·切换老用户</text>
-      </view>
+  <!-- 身份条：首页只显示昵称，不显示档案真名 -->
+  <view class="id-row">
+    <view class="avatar">{{initial}}</view>
+    <view class="grow" bindtap="setNickname">
+      <view class="id-name {{hasNickname ? '' : 'id-name-empty'}}">{{name}}</view>
+      <view class="id-sub" wx:if="{{hasNickname}}">{{identity}}</view>
+      <view class="id-sub" wx:else>昵称只存在这台手机上 · 点这里设置</view>
     </view>
-
-    <view class="hero-bar mt-24" wx:if="{{mode === 'old'}}">
-      <view class="hero-bar-fill" style="width:{{completenessPct}}%"></view>
+    <view class="id-right" wx:if="{{mode === 'old'}}" bindtap="goProfile">
+      <text class="id-pct">{{completenessPct}}%</text>
+      <text class="id-pct-label">档案</text>
     </view>
-    <view class="dim-grid mt-16" wx:if="{{mode === 'old'}}">
-      <view wx:for="{{dims}}" wx:key="key" class="dim {{item.cls}}"></view>
+    <view class="mode-toggle-sm" wx:else bindtap="toggleMode">
+      <text class="mode-toggle-text-sm">测·切老用户</text>
     </view>
-    <view class="hero-mini mt-16" wx:if="{{mode === 'old'}}">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
-    <view class="hero-mini mt-16" wx:else>新人视角 · 档案还是白纸，点下面三步把它写满</view>
-  </view>
-
-  <!-- 老用户也能随时切回新人视角重走引导（右上角小字，不抢视觉） -->
-  <view class="mode-switch-row" wx:if="{{mode === 'old'}}">
-    <text class="mode-switch" bindtap="toggleMode">测试：切到新人视角</text>
   </view>
 
   <view class="t-mini mt-8" wx:if="{{offline}}">离线演示数据 · 后端未连接</view>
 
-  <!-- ── 新人引导：三步把档案立起来，每步一个入口，做完自动打勾 ── -->
-  <view wx:if="{{mode === 'new'}}" class="section">
-    <text class="section-title">先做三件事</text>
+  <!-- ── 第一个模块：今日五行（公共历法信息，只谈节奏，不作预测）── -->
+  <view class="section">
+    <text class="section-title">今日五行</text>
+    <text class="section-more" wx:if="{{termText}}">{{termText}}</text>
   </view>
-  <view wx:if="{{mode === 'new'}}" class="card onboard">
-    <view class="step {{ackDone ? 'done' : ''}}" bindtap="reopenLegal">
-      <text class="step-no">{{ackDone ? '✓' : '1'}}</text>
-      <view class="step-body">
-        <view class="step-title">同意三件事</view>
-        <view class="step-sub">隐私怎么保护、数据归谁，先说清楚再开始</view>
+  <view class="card gz-card" wx:if="{{gz}}">
+    <view class="gz-pillars">
+      <view wx:for="{{pillars}}" wx:key="label" class="gz-pillar">
+        <text class="gz-pillar-label">{{item.label}}</text>
+        <text class="gz-pillar-text">{{item.text}}</text>
+        <text class="gz-pillar-el">{{item.el}}</text>
       </view>
-      <text class="step-go">{{ackDone ? '' : '去同意 →'}}</text>
     </view>
-    <view class="step {{quizDone ? 'done' : ''}}" bindtap="goQuiz">
-      <text class="step-no">{{quizDone ? '✓' : quizDonePartially ? '…' : '2'}}</text>
-      <view class="step-body">
-        <view class="step-title">入局问答 {{quizDoneNum}} / {{quizTotal}}</view>
-        <view class="step-sub">12 道选择题，选完档案就有了骨架，不填表</view>
+
+    <view class="gz-bars">
+      <view wx:for="{{elementBars}}" wx:key="el" class="gz-bar-row">
+        <text class="gz-bar-el">{{item.el}}</text>
+        <view class="gz-bar-track">
+          <view class="gz-bar-fill gz-el-{{item.el}}" style="width:{{item.w}}%"></view>
+        </view>
+        <text class="gz-bar-pct">{{item.pct}}%</text>
       </view>
-      <text class="step-go">{{quizDone ? '' : quizDonePartially ? '继续答 →' : '开始答 →'}}</text>
     </view>
-    <view class="step" bindtap="goRecord">
-      <text class="step-no">3</text>
-      <view class="step-body">
-        <view class="step-title">记第一笔</view>
-        <view class="step-sub">今天吃了什么、见了谁、在忙什么，一句话就行</view>
-      </view>
-      <text class="step-go">去记 →</text>
-    </view>
-    <view class="onboard-note">答完题、记几笔，这里就会长出「它对你的理解」。</view>
+
+    <view class="gz-note">{{elementNote}}</view>
+    <view class="gz-disclaim">干支与五行是公共历法信息，只作为节奏参考，不作吉凶、财运、健康方面的断言。</view>
+  </view>
+  <view class="card" wx:else>
+    <view class="t-mini">拿不到今日干支。检查服务地址后在「档案」页重试。</view>
   </view>
 
+  <!-- ── 新人引导：三步把档案立起来 ── -->
+  <block wx:if="{{mode === 'new'}}">
+    <view class="section">
+      <text class="section-title">先做三件事</text>
+      <text class="section-more" bindtap="toggleMode">切到老用户 →</text>
+    </view>
+    <view class="card onboard">
+      <view class="step {{ackDone ? 'done' : ''}}" bindtap="reopenLegal">
+        <text class="step-no">{{ackDone ? '✓' : '1'}}</text>
+        <view class="step-body">
+          <view class="step-title">同意三件事</view>
+          <view class="step-sub">隐私怎么保护、数据归谁，先说清楚再开始</view>
+        </view>
+        <text class="step-go">{{ackDone ? '' : '去同意 →'}}</text>
+      </view>
+      <view class="step {{quizDone ? 'done' : ''}}" bindtap="goQuiz">
+        <text class="step-no">{{quizDone ? '✓' : quizDonePartially ? '…' : '2'}}</text>
+        <view class="step-body">
+          <view class="step-title">入局问答 {{quizDoneNum}} / {{quizTotal}}</view>
+          <view class="step-sub">12 道选择题，选完档案就有骨架，不填表</view>
+        </view>
+        <text class="step-go">{{quizDone ? '' : quizDonePartially ? '继续答 →' : '开始答 →'}}</text>
+      </view>
+      <view class="step" bindtap="goRecord">
+        <text class="step-no">3</text>
+        <view class="step-body">
+          <view class="step-title">记第一笔</view>
+          <view class="step-sub">今天吃了什么、见了谁、在忙什么，一句话就行</view>
+        </view>
+        <text class="step-go">去记 →</text>
+      </view>
+      <view class="onboard-note">答完题、记几笔，首页就会长出「它对你的理解」。</view>
+    </view>
+  </block>
+
+  <!-- ── 老用户：它现在这样理解你 ── -->
   <block wx:if="{{mode === 'old'}}">
     <view class="section">
       <text class="section-title">它现在这样理解你</text>
@@ -85,7 +108,61 @@
       </view>
       <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
     </view>
+  </block>
 
+  <!-- ── 现在要做什么：不再是天窗，直接给算好的结果 ── -->
+  <view class="section">
+    <text class="section-title">现在要做什么</text>
+    <text class="section-more" bindtap="goChatEmpty">直接说 →</text>
+  </view>
+  <view class="rec-head">
+    <text class="rec-city">{{recCity || '按档案城市'}}</text>
+    <text class="rec-note">{{recNote}}</text>
+    <text class="rec-geo" wx:if="{{geoState === 'denied'}}" bindtap="goProfile">开定位 ›</text>
+  </view>
+
+  <view class="rec-card" wx:if="{{recFood}}">
+    <view class="rec-top">
+      <text class="rec-tag rec-tag-eat">吃</text>
+      <text class="rec-title">{{recFood.title}}</text>
+      <text class="rec-kcal" wx:if="{{recFood.kcal}}">{{recFood.kcal}} kcal</text>
+    </view>
+    <view class="rec-desc">{{recFood.desc}}</view>
+    <view class="rec-why" wx:for="{{recFood.why}}" wx:key="*this">· {{item}}</view>
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" data-kw="{{recFood.keyword}}" data-app="大众点评" bindtap="copyKeyword">去大众点评搜</text>
+      <text class="rec-btn" bindtap="goChat" data-text="中午吃什么，把菜点出来">换个说法</text>
+    </view>
+  </view>
+
+  <view class="rec-card" wx:if="{{recMove}}">
+    <view class="rec-top">
+      <text class="rec-tag rec-tag-move">动</text>
+      <text class="rec-title">{{recMove.title}}</text>
+      <text class="rec-kcal" wx:if="{{recMove.kcal}}">{{recMove.kcal}} kcal</text>
+    </view>
+    <view class="rec-desc">{{recMove.desc}}</view>
+    <view class="rec-why" wx:for="{{recMove.why}}" wx:key="*this">· {{item}}</view>
+    <view class="rec-actions">
+      <text class="rec-btn rec-btn-main" data-kw="{{recMove.keyword}}" data-app="Keep" bindtap="copyKeyword">去 Keep 搜跟练</text>
+      <text class="rec-btn" bindtap="openMyMap">看我的位置</text>
+    </view>
+  </view>
+
+  <view class="rec-empty" wx:if="{{!recFood && !recMove}}">推荐还没算出来。检查服务地址，或直接在下面说一句你的需要。</view>
+
+  <view class="quick-grid mt-16">
+    <view wx:for="{{quick}}" wx:key="key" class="quick" bindtap="goChat" data-text="{{item.text}}">
+      <text class="quick-label">{{item.label}}</text>
+      <text class="quick-arrow">→</text>
+    </view>
+  </view>
+
+  <view class="services-entry" bindtap="goServices" wx:if="{{mode === 'old'}}">
+    <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
+  </view>
+
+  <block wx:if="{{mode === 'old'}}">
     <view class="section">
       <text class="section-title">最近的记忆</text>
       <text class="section-more" bindtap="goProfile">全部</text>
@@ -103,21 +180,6 @@
     </view>
     <view class="empty" wx:else>还没有记录。执笔对你还一无所知。</view>
   </block>
-
-  <!-- 快捷入口：新人老用户都保留 —— 这是首页最有粘合力的一块 -->
-  <view class="section">
-    <text class="section-title">现在要做什么</text>
-    <text class="section-more" bindtap="goChatEmpty">直接说 →</text>
-  </view>
-  <view class="quick-grid">
-    <view wx:for="{{quick}}" wx:key="key" class="quick" bindtap="goChat" data-text="{{item.text}}">
-      <text class="quick-label">{{item.label}}</text>
-      <text class="quick-arrow">→</text>
-    </view>
-  </view>
-  <view class="services-entry" bindtap="goServices" wx:if="{{mode === 'old'}}">
-    <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
-  </view>
 
   <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
 

@@ -61,8 +61,12 @@ module.exports = {
   getProfile: personId => request(`/api/persons/${personId}/profile`),
   getConflicts: personId => request(`/api/persons/${personId}/conflicts`),
   getInvocations: personId => request(`/api/persons/${personId}/invocations`),
-  orchestrate: (personId, text, tags) =>
-    request(`/api/persons/${personId}/orchestrate`, { method: 'POST', data: { text, tags } }),
+  // geo: {lat, lon} —— 首页按当前位置推荐；remember:false —— 自动推荐不写进记忆
+  orchestrate: (personId, text, tags, opts = {}) =>
+    request(`/api/persons/${personId}/orchestrate`, {
+      method: 'POST',
+      data: { text, tags, geo: opts.geo || undefined, remember: opts.remember !== false },
+    }),
   record: (personId, text, tags) =>
     request(`/api/persons/${personId}/records`, { method: 'POST', data: { text, tags } }),
   saveFact: (personId, key, value) =>

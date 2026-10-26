@@ -14,6 +14,7 @@ const { createRepos } = require('./store/repos')
 const { FACT_DIMENSIONS, INTENTS } = require('./domain/taxonomy')
 const { BRAND } = require('./domain/brand')
 const quiz = require('./domain/quiz')
+const geo = require('./domain/geo')
 const gz = require('./domain/ganzhi')
 const registry = require('./agents/registry')
 const baseAgents = require('./agents/registry') // 触发注册
@@ -26,6 +27,7 @@ require('./agents/venue.agent')
 require('./agents/catering.agent')
 require('./agents/wine.agent')
 require('./agents/dream.agent')
+require('./agents/move.agent')
 const { extract } = require('./services/extract.service')
 const { recordEpisode, compileSilicon } = require('./services/profile.service')
 const { orchestrate } = require('./services/orchestrator.service')
@@ -344,9 +346,12 @@ const routes = [
         recordEpisode(repos, params[0], extracted, 'intent')
       }
 
+      // 定位可选：前端给了经纬度就按「就近城市」走，没给就回退档案里的城市
+      const g = geo.normalizeGeo(body.geo)
       const result = await orchestrate(repos, params[0], text, {
         tags: extracted.tags,
         entities: extracted.entities,
+        geo: g,
       })
       return result
     },

@@ -72,7 +72,8 @@ const CACHE_TTL_MS = 10 * 60 * 1000
 const cache = new Map()
 
 async function run(ctx) {
-  const city = ctx.facts['life.city'] || ctx.profile?.person?.city || '银川'
+  // 定位优先：人在哪就查哪的天气；没授权定位才回退档案城市
+  const city = ctx.geo?.city || ctx.facts['life.city'] || ctx.profile?.person?.city || '银川'
   const hit = cache.get(city)
   let w
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {

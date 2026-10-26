@@ -14,7 +14,8 @@
 | 默认分支 | `main`（已建 upstream） |
 | 类型 | 微信原生小程序 + H5（web/）+ Node 网关（8787）+ C++17 计算内核（8788） |
 | 后端端口 | 8787（Node）/ 8788（core/ 内核，仅监听本机） |
-| 小程序 AppID | `touristappid`（⚠️ 游客模式，无法提审；不可与「给您请安」「剧本杀工坊」共用） |
+| 小程序 AppID | `wxad8ab4dde11ac693`（小程序类型试用 AppID，2026-10-26 启用；⚠️ 试用有效期约 30 天，mp 后台可延期；`wxd00dcb7ca3270b2e` 是**小游戏**类型账号，不适用本项目，勿再误用） |
+| HTTPS 域名 | `https://qijuzhu.lygenery.de5.net`（A 记录 → ECS；nginx 1.30.4 反代 8787，配置 `/etc/nginx/conf.d/qijuzhu.conf`；**80 被阿里云备案拦截**（Server: Beaver），443 不拦；证书走 acme.sh **DNS-01**（HTTP-01 不可用），de5.net 无备案 → 微信后台 request 合法域名配不了，真机须开调试模式 |
 | 数据存储 | `server/data/*.json`（Collection 接口，可换 SQLite）；**已 gitignore**，首次启动由 `src/seed.js` 自动生成 |
 | ECS 生产 | `root@8.136.205.105`（id_rsa），Alibaba Cloud Linux 4，systemd 单元 `qijuzhu`，目录 `/srv/qijuzhu/app`，env 在 `/srv/qijuzhu/app.env`（含保险箱口令，勿丢勿提交）；部署 `bash deploy/deploy.sh`，查看 `--check`；CI deploy job 靠 Secrets `ECS_SSH_KEY/ECS_HOST/ECS_USER`（部署密钥 `~/.ssh/qjz_deploy` 已授权）；机器上另有 hermes 业务（8642/8644），勿动 |
 | 设计令牌 | 两端共用一套色值：纸白 `#FBFAF8` / 白卡 `#FFFFFF` / 星巴克绿 `#00704A` / 深绿块 `#1E3932` / 文字 `#1F2320`·`#5B655F`·`#7A847E` / 分隔 `#E7E2D9` / 琥珀 `#96690F`。改色只改 `miniprogram/app.wxss` 与 `web/style.css` 的 :root，页面不许写死颜色（审过无残留） |
@@ -24,6 +25,9 @@
 | 输入端 | 拍照识食 `services/vision.service.js` + 转写 `services/asr.service.js`，走 `llm/provider.js` 的 `completeVisionJSON/transcribe`（OpenAI 兼容 image_url / /audio/transcriptions）；**照片与录音只在内存过一遍即丢，不落盘不进档案**（check-input 断言）；未配模型时 reason 说「还没接通」而不是「没认出来」（engine=disabled 与 none 区分）；转写结果填输入框由用户确认后才走 records |
 | 服务能力 | 膳食 / 节律 / 天气 / 日程 / 选本 / 场地 / 茶歇 / **选酒**（`wine.suggest`）/ **记梦**（`dream.record`） |
 | 经验层 | `experiences`（可执行规则，资产核心）+ `criteria`（双环约束点，带版本号）；反思入口 `POST /experiences/reflect` |
+| Obsidian 桥 | `domain/obsidian.js`（零依赖 frontmatter 解析）+ `obsidian.service.js`；接口 `POST /api/persons/:id/experiences/obsidian/sync`（body `{dryRun:true}` 预览）；**vault 路径只认服务端 `OBSIDIAN_VAULT_PATH`，不接受请求体传路径**（防目录穿越）；幂等键 `obsidian|<相对路径>`；**笔记 validity 只做种子分，运行时 applyOutcome 反馈优先，重复同步只更新文本不回滚分数**；笔记删除不删经验 |
+| 笔记格式 | frontmatter：`type: decision-experience` + situation/action/outcome（必填，引号字符串）+ validity(0.02-0.99)/applied_count/last_applied/tags；行动文本用「」括住——检索仲裁靠最后一个「」词提取对象；示范笔记在 studyObsidian `00-Inbox/2026-10-26-一周两人上线.md` |
+| vault 上云 | studyObsidian 库双远端：`ec2`（AWS wiki，原链路勿动）+ `aliyun`（`root@8.136.205.105:/srv/qijuzhu/vault.git` 裸库 → `/srv/qijuzhu/vault` 工作副本，Mac 推送走 `~/.ssh/qjz_deploy`，已设 core.sshCommand）；ECS crontab 每 15 分钟 `git pull`（日志 `/srv/qijuzhu/vault-pull.log`）；**库在 ECS 是明文**（用户知情选择，加密方案二期） |
 
 ## 启动
 

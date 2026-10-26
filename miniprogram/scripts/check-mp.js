@@ -194,6 +194,27 @@ function main() {
     return typeof indexPage.reopenLegal === 'function'
   })())
 
+  console.log('\n【8】首页改版：昵称 / 今日安排 / 新人视角 / 问答页')
+  const appJson = readJSON(path.join(MP, 'app.json'))
+  ok('声明了定位权限说明', !!(appJson.permission && appJson.permission['scope.userLocation']))
+  ok('requiredPrivateInfos 含 getLocation', (appJson.requiredPrivateInfos || []).includes('getLocation'))
+  ok('问答页已注册', (appJson.pages || []).includes('pages/quiz/quiz'))
+
+  const idx = loadPage('pages/index/index.js')
+  idx.buildGreet()
+  ok('问候语是「您的今日安排」', String(idx.data.greetHello).includes('您的今日安排'), idx.data.greetHello)
+  ok('档案空时默认新人视角', idx.resolveMode(0) === 'new')
+  ok('档案厚时默认老用户视角', idx.resolveMode(0.72) === 'old')
+  idx.setData({ mode: 'new' })
+  idx.toggleMode()
+  ok('切换按钮能在两套视角间来回', idx.data.mode === 'old')
+  ok('首页不再直接显示真名（默认昵称占位）', idx.data.name === '' || idx.data.name === '给自己起个昵称' || idx.data.hasNickname === false)
+  ok('首页有推荐区与五行区的方法', typeof idx.loadRecs === 'function' && typeof idx.loadGanzhi === 'function')
+
+  const quiz = loadPage('pages/quiz/quiz.js')
+  ok('问答页有 pick / load', typeof quiz.pick === 'function' && typeof quiz.load === 'function')
+  ok('问答页初始未答完', quiz.data.finished === false && quiz.data.done === 0)
+
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {
     console.log('失败项：')

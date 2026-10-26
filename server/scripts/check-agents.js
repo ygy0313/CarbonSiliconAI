@@ -132,6 +132,33 @@ async function main() {
   ok('能力清单里意图覆盖完整', ['eat', 'gather', 'gift', 'drink', 'dream'].every(t => list.some(s => s.intents.includes(t))),
     list.flatMap(s => s.intents).join(','))
 
+  console.log('\n【7】运动能力与卡路里、定位')
+  const move = await call('/api/persons/p_owner/orchestrate', { method: 'POST', body: { text: '今晚想动一动，出出汗' } })
+  const moveCards = move.data?.cards || []
+  ok('「动一动」路由到运动能力', move.data?.intent?.type === 'move', `intent=${move.data?.intent?.type}`)
+  const moveCard = moveCards.find(c => String(c.id || '').startsWith('move_'))
+  ok('运动卡给出卡路里量级', !!moveCard && Number(moveCard.meta?.kcal30) > 0, `meta=${JSON.stringify(moveCard?.meta || {})}`)
+  ok('运动卡有搜索词（可给 App 导流）', !!(moveCard?.meta?.searchKeyword), moveCard?.meta?.searchKeyword)
+
+  const eat = await call('/api/persons/p_owner/orchestrate', {
+    method: 'POST',
+    body: { text: '中午吃什么，别太辣', geo: { lat: 30.27, lon: 120.15 } },
+  })
+  const eatCard = (eat.data?.cards || []).find(c => String(c.id || '').startsWith('meal_'))
+  ok('餐饮卡带卡路里', !!eatCard && Number(eatCard.meta?.kcal) > 0, `kcal=${eatCard?.meta?.kcal}`)
+  ok('定位决定城市（杭州坐标 → 搜索词含杭州）',
+    String(eatCard?.meta?.searchKeyword || '').includes('杭州'), eatCard?.meta?.searchKeyword)
+
+  const badGeo = await call('/api/persons/p_owner/orchestrate', {
+    method: 'POST',
+    body: { text: '中午吃什么', geo: { lat: 999, lon: 999 } },
+  })
+  ok('非法经纬度不报错，回退档案城市', badGeo.status === 200 && (badGeo.data?.cards || []).length > 0)
+
+  const servicesAfter = await call('/api/services')
+  ok('服务市集里有「运动建议」', (servicesAfter.data?.services || []).some(s => s.id === 'move.suggest'))
+  ok('意图覆盖包含 move', (servicesAfter.data?.services || []).some(s => s.intents.includes('move')))
+
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {
     console.log('失败项：')

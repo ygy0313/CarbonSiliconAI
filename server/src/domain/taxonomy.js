@@ -58,6 +58,13 @@ const INTENTS = [
     keywords: ['做梦', '梦见', '梦到', '噩梦', '梦里', '梦境', '梦'],
     weight: 1.1,
   },
+  {
+    type: 'move',
+    label: '动一动',
+    service: '本地生活',
+    keywords: ['运动', '动一动', '锻炼', '健身', '跑步', '慢跑', '散步', '走路', '游泳', '骑车', '瑜伽', '拉伸', '卡路里', '消耗', '减脂', '出汗', '撸铁'],
+    weight: 1.05,
+  },
 ]
 
 // ── 五行 → 五味（趣味文化向，只做饮食方向提示，不做吉凶断言）──
@@ -69,24 +76,24 @@ const OVERCOME = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' } 
 // spicy: 0-3；element: 五行属性；load: 消化负担 light/normal/heavy
 // helps: 适合的身体状态；pains: 不适合的状态；min: 大致出餐分钟；price: 人均
 const DISH_LIBRARY = [
-  { id: 'd01', name: '清炖羊肉萝卜', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '乏力', '天冷'], pains: ['上火'], min: 45, price: 48, note: '宁夏滩羊，汤清不膻' },
-  { id: 'd02', name: '蒿子面', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['没胃口', '胃敏感'], pains: [], min: 20, price: 18, note: '中宁蒿子面，酸香开胃' },
-  { id: 'd03', name: '羊肉臊子面', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿', '乏力'], pains: ['胃敏感'], min: 25, price: 22, note: '西北家常，汤浓面筋' },
-  { id: 'd04', name: '手抓羊肉', element: '土', taste: '甘', spicy: 0, load: 'heavy', helps: ['乏力', '待客'], pains: ['胃敏感', '上火'], min: 50, price: 78, note: '原汤原味，配蒜醋' },
-  { id: 'd05', name: '沙湖大鱼头', element: '水', taste: '咸', spicy: 1, load: 'normal', helps: ['待客', '想补'], pains: [], min: 40, price: 88, note: '沙湖鲢鱼，汤白味鲜' },
-  { id: 'd06', name: '凉拌沙葱', element: '木', taste: '酸', spicy: 1, load: 'light', helps: ['解腻', '天热'], pains: ['胃寒'], min: 10, price: 16, note: '贺兰山沙葱，脆爽' },
-  { id: 'd07', name: '枸杞芽煎蛋', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['眼干', '上火'], pains: [], min: 12, price: 22, note: '本地枸杞芽，微苦回甘' },
-  { id: 'd08', name: '辣糊糊', element: '火', taste: '苦', spicy: 3, load: 'normal', helps: ['嘴馋', '天冷'], pains: ['胃敏感', '上火'], min: 20, price: 25, note: '银川街头味，慎点' },
-  { id: 'd09', name: '烩小吃', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '想家'], pains: [], min: 25, price: 26, note: '丸子夹板粉条一锅烩' },
-  { id: 'd10', name: '蒸南瓜小米粥', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '失眠', '上火'], pains: [], min: 30, price: 12, note: '养胃，晚上也能吃' },
-  { id: 'd11', name: '山药排骨汤', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '乏力'], pains: [], min: 60, price: 42, note: '温补不燥' },
-  { id: 'd12', name: '蒜香烤羊排', element: '金', taste: '辛', spicy: 1, load: 'heavy', helps: ['待客', '嘴馋'], pains: ['上火', '胃敏感'], min: 45, price: 98, note: '配红酒很合适' },
-  { id: 'd13', name: '醋溜白菜', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['解腻', '上火'], pains: [], min: 12, price: 14, note: '清爽收口' },
-  { id: 'd14', name: '八宝茶', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃寒', '熬夜', '待客'], pains: [], min: 5, price: 12, note: '盖碗八宝，回民待客茶' },
-  { id: 'd15', name: '贺兰山赤霞珠', element: '火', taste: '苦', spicy: 0, load: 'light', helps: ['待客', '小酌'], pains: ['胃敏感'], min: 1, price: 128, note: '本地酒庄，配红肉' },
-  { id: 'd16', name: '酸汤水饺', element: '木', taste: '酸', spicy: 1, load: 'normal', helps: ['没胃口', '嘴馋'], pains: ['胃敏感'], min: 20, price: 20, note: '酸辣开胃' },
-  { id: 'd17', name: '黄焖鸡米饭', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿'], pains: [], min: 25, price: 28, note: '一个人吃的稳妥选择' },
-  { id: 'd18', name: '拌汤（洋芋疙瘩汤）', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '胃寒', '宿醉'], pains: [], min: 15, price: 14, note: '最家常的安慰' },
+  { id: 'd01', name: '清炖羊肉萝卜', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '乏力', '天冷'], pains: ['上火'], min: 45, price: 48, kcal: 520, note: '宁夏滩羊，汤清不膻' },
+  { id: 'd02', name: '蒿子面', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['没胃口', '胃敏感'], pains: [], min: 20, price: 18, kcal: 420, note: '中宁蒿子面，酸香开胃' },
+  { id: 'd03', name: '羊肉臊子面', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿', '乏力'], pains: ['胃敏感'], min: 25, price: 22, kcal: 560, note: '西北家常，汤浓面筋' },
+  { id: 'd04', name: '手抓羊肉', element: '土', taste: '甘', spicy: 0, load: 'heavy', helps: ['乏力', '待客'], pains: ['胃敏感', '上火'], min: 50, price: 78, kcal: 780, note: '原汤原味，配蒜醋' },
+  { id: 'd05', name: '沙湖大鱼头', element: '水', taste: '咸', spicy: 1, load: 'normal', helps: ['待客', '想补'], pains: [], min: 40, price: 88, kcal: 620, note: '沙湖鲢鱼，汤白味鲜' },
+  { id: 'd06', name: '凉拌沙葱', element: '木', taste: '酸', spicy: 1, load: 'light', helps: ['解腻', '天热'], pains: ['胃寒'], min: 10, price: 16, kcal: 90, note: '贺兰山沙葱，脆爽' },
+  { id: 'd07', name: '枸杞芽煎蛋', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['眼干', '上火'], pains: [], min: 12, price: 22, kcal: 210, note: '本地枸杞芽，微苦回甘' },
+  { id: 'd08', name: '辣糊糊', element: '火', taste: '苦', spicy: 3, load: 'normal', helps: ['嘴馋', '天冷'], pains: ['胃敏感', '上火'], min: 20, price: 25, kcal: 480, note: '银川街头味，慎点' },
+  { id: 'd09', name: '烩小吃', element: '土', taste: '甘', spicy: 0, load: 'normal', helps: ['胃寒', '想家'], pains: [], min: 25, price: 26, kcal: 520, note: '丸子夹板粉条一锅烩' },
+  { id: 'd10', name: '蒸南瓜小米粥', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '失眠', '上火'], pains: [], min: 30, price: 12, kcal: 260, note: '养胃，晚上也能吃' },
+  { id: 'd11', name: '山药排骨汤', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '乏力'], pains: [], min: 60, price: 42, kcal: 380, note: '温补不燥' },
+  { id: 'd12', name: '蒜香烤羊排', element: '金', taste: '辛', spicy: 1, load: 'heavy', helps: ['待客', '嘴馋'], pains: ['上火', '胃敏感'], min: 45, price: 98, kcal: 920, note: '配红酒很合适' },
+  { id: 'd13', name: '醋溜白菜', element: '木', taste: '酸', spicy: 0, load: 'light', helps: ['解腻', '上火'], pains: [], min: 12, price: 14, kcal: 110, note: '清爽收口' },
+  { id: 'd14', name: '八宝茶', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃寒', '熬夜', '待客'], pains: [], min: 5, price: 12, kcal: 90, note: '盖碗八宝，回民待客茶' },
+  { id: 'd15', name: '贺兰山赤霞珠', element: '火', taste: '苦', spicy: 0, load: 'light', helps: ['待客', '小酌'], pains: ['胃敏感'], min: 1, price: 128, kcal: 130, note: '本地酒庄，配红肉' },
+  { id: 'd16', name: '酸汤水饺', element: '木', taste: '酸', spicy: 1, load: 'normal', helps: ['没胃口', '嘴馋'], pains: ['胃敏感'], min: 20, price: 20, kcal: 480, note: '酸辣开胃' },
+  { id: 'd17', name: '黄焖鸡米饭', element: '土', taste: '甘', spicy: 1, load: 'normal', helps: ['饿'], pains: [], min: 25, price: 28, kcal: 760, note: '一个人吃的稳妥选择' },
+  { id: 'd18', name: '拌汤（洋芋疙瘩汤）', element: '土', taste: '甘', spicy: 0, load: 'light', helps: ['胃敏感', '胃寒', '宿醉'], pains: [], min: 15, price: 14, kcal: 320, note: '最家常的安慰' },
 ]
 
 // ── 剧本杀本库 ────────────────────────────────────────────
@@ -140,6 +147,21 @@ const CATERING_LIBRARY = [
   { id: 'c04', name: '酒局配置（本地干红 + 奶酪）', perPerson: 68, tags: ['成人局'] },
 ]
 
+// ── 运动库 ────────────────────────────────────────────────
+// kcal30：70kg 成人做 30 分钟的粗略消耗（不是医疗建议，只用来给个量级）。
+// scene：outdoor 需要出门（受天气影响），indoor 室内随时可做。
+// helps：对哪些状态有帮助，和膳食库同一套标签，方便跨能力对齐。
+const EXERCISE_LIBRARY = [
+  { id: 'e01', name: '快走 30 分钟', kind: '有氧', kcal30: 140, scene: 'outdoor', helps: ['久坐', '饭后', '犯困'], note: '饭后半小时走，不喘但微微出汗' },
+  { id: 'e02', name: '慢跑 30 分钟', kind: '有氧', kcal30: 300, scene: 'outdoor', helps: ['解压', '减脂', '失眠'], note: '配速 6-7 分，能说话就对了' },
+  { id: 'e03', name: '骑行 30 分钟', kind: '有氧', kcal30: 260, scene: 'outdoor', helps: ['通勤', '解压', '减脂'], note: '当交通用，不算额外花时间' },
+  { id: 'e04', name: '跳绳 15 分钟', kind: '有氧', kcal30: 200, scene: 'indoor', helps: ['没时间', '减脂', '提神'], note: '分 5 组，每组 2 分钟，组间歇 30 秒' },
+  { id: 'e05', name: '力量训练 30 分钟', kind: '力量', kcal30: 240, scene: 'indoor', helps: ['久坐', '腰背酸', '增肌'], note: '深蹲、俯卧撑、划船各 3 组，自重就够' },
+  { id: 'e06', name: '拉伸 / 瑜伽 20 分钟', kind: '舒展', kcal30: 90, scene: 'indoor', helps: ['久坐', '焦虑', '失眠', '腰背酸'], note: '睡前做，肩颈和髋先松开' },
+  { id: 'e07', name: '游泳 30 分钟', kind: '有氧', kcal30: 320, scene: 'indoor', helps: ['减脂', '腰背酸', '解压'], note: '对膝盖最友好的有氧' },
+  { id: 'e08', name: '羽毛球 30 分钟', kind: '有氧', kcal30: 280, scene: 'indoor', helps: ['朋友', '解压', '想动'], note: '顺便约会，一举两得' },
+]
+
 // ── 需求实体词典（规则抽取用）──────────────────────────────
 const SYMPTOM_WORDS = {
   胃敏感: ['胃不舒服', '胃疼', '胃痛', '胃胀', '反酸', '拉肚子', '肠胃'],
@@ -171,6 +193,7 @@ module.exports = {
   NPC_TEMPLATES,
   VENUE_LIBRARY,
   CATERING_LIBRARY,
+  EXERCISE_LIBRARY,
   SYMPTOM_WORDS,
   TASTE_WORDS,
 }
