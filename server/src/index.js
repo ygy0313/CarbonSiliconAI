@@ -35,6 +35,7 @@ const { buildPersonaPrompt, summarize: summarizePrompt } = require('./services/p
 const { exportArchive, importArchive, verifyArchive } = require('./services/export.service')
 const experienceService = require('./services/experience.service')
 const reflectService = require('./services/reflect.service')
+const obsidianService = require('./services/obsidian.service')
 const core = require('./core/client')
 const vault = require('./security/vault')
 const grant = require('./security/grant')
@@ -455,6 +456,20 @@ const routes = [
       const exp = experienceService.setStatus(repos, params[0], params[1], status)
       if (!exp) throw new NotFoundError('经验不存在')
       return { experience: exp }
+    },
+  },
+
+  // ── Obsidian 决策经验同步（vault 路径只认服务端配置，不接受请求体传路径）──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/experiences\/obsidian\/sync$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const summary = obsidianService.sync(repos, params[0], {
+        vaultPath: config.obsidian.vaultPath,
+        dryRun: body && body.dryRun === true,
+      })
+      return { summary, vaultConfigured: !!config.obsidian.vaultPath }
     },
   },
 

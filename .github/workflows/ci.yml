@@ -98,6 +98,9 @@ jobs:
           cd server
           NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost node scripts/check-experience.js
 
+      - name: Obsidian 决策经验闭环回归（解析/幂等同步/重排序/反馈）
+        run: node server/scripts/check-obsidian.js
+
       - name: 干支历算自检（26 项）
         run: node server/scripts/verify-ganzhi.js
 

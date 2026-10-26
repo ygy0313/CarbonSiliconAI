@@ -60,6 +60,11 @@ const config = {
     exposeLimit: int(process.env.EXPERIENCE_EXPOSE_LIMIT, 3),
   },
 
+  // Obsidian 库：决策经验笔记的来源。空 = 功能未开（同步接口返回明确提示）。
+  obsidian: {
+    vaultPath: process.env.OBSIDIAN_VAULT_PATH || '',
+  },
+
   // CORS：显式来源，禁止通配符。小程序不受 CORS 限制，这里只服务本地预览页。
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
