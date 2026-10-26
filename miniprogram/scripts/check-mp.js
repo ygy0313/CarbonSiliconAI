@@ -218,8 +218,8 @@ function main() {
   ok('我的页分三段', (mine.data.segs || []).length === 3 && mine.data.seg === 'file')
   ok('三段切换方法存在', typeof mine.switchSeg === 'function')
   ok('切换后落到对应段', (() => {
-    mine.switchSeg({ currentTarget: { dataset: { seg: 'body' } } })
-    return mine.data.seg === 'body'
+    mine.switchSeg({ currentTarget: { dataset: { seg: 'auth' } } })
+    return mine.data.seg === 'auth'
   })())
   ok('档案事实可点即改', typeof mine.editFact === 'function' && typeof mine.saveFact === 'function')
   ok('冲突可裁决', typeof mine.doResolve === 'function' && typeof mine.resolve === 'function')

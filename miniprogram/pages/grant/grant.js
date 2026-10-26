@@ -563,6 +563,11 @@ Page({
   //   3) 服务端能力（Obsidian / 大模型）用户管不了，这里只告知，不做假开关
   refreshAuth() {
     return new Promise(resolve => {
+      if (typeof wx.getSetting !== 'function') {
+        // 桩环境 / 极旧基础库：不假装知道状态，全部显示「去授权」
+        this.setData({ authItems: AUTH_ITEMS.map(it => ({ ...it, state: 'none', actionText: '去授权', on: false })) })
+        return resolve([])
+      }
       wx.getSetting({
         success: res => {
           const setting = res.authSetting || {}
