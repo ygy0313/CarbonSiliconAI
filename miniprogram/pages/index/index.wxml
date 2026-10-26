@@ -95,21 +95,6 @@
     </view>
   </block>
 
-  <!-- ── 老用户：它现在这样理解你 ── -->
-  <block wx:if="{{mode === 'old'}}">
-    <view class="section">
-      <text class="section-title">它现在这样理解你</text>
-      <text class="section-more" bindtap="goProfile">去核对</text>
-    </view>
-    <view class="card">
-      <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
-        <view class="dot"></view>
-        <text class="t-body grow">{{item}}</text>
-      </view>
-      <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
-    </view>
-  </block>
-
   <!-- ── 现在要做什么：不再是天窗，直接给算好的结果 ── -->
   <view class="section">
     <text class="section-title">现在要做什么</text>

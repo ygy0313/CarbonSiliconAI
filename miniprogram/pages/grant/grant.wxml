@@ -1,9 +1,71 @@
 <view class="container">
 
-  <view class="t-mini mb-16">记录在入库时就已脱敏，原文只存密文。读 prompt、导出、还原原文，都需要在这里签一张票据 —— 有用途、有期限、有次数。</view>
+  <!-- ── 头卡：昵称 / 完整度 ── -->
+  <view class="me-head" bindtap="setNickname">
+    <view class="me-avatar">{{hasNickname ? nickname[0] : '起'}}</view>
+    <view class="grow">
+      <view class="me-name">{{hasNickname ? nickname : '给自己起个昵称'}}</view>
+      <view class="t-mini mt-8">档案完整度 {{completenessPct || '0'}}% · 点名字可改昵称</view>
+    </view>
+    <text class="me-more" bindtap="goProfile">完善档案 ›</text>
+  </view>
 
+  <!-- ── 个人八字 ── -->
   <view class="section">
-    <view class="section-title">签一张票</view>
+    <view class="section-title">个人八字</view>
+    <view class="t-mini">录入出生年月日（时辰可选），生成你的命盘。只描述构成与偏好倾向，不作吉凶断言。</view>
+
+    <view class="row gap-8 mt-16">
+      <picker mode="date" start="1900-01-01" end="2026-12-31" value="{{birthDate}}" bindchange="onBirthDate">
+        <view class="pick-box">{{birthDate || '选择出生年月日'}}</view>
+      </picker>
+      <picker range="{{hourOptions}}" value="{{hourIdx}}" bindchange="onHourPick">
+        <view class="pick-box">{{hourOptions[hourIdx]}}</view>
+      </picker>
+    </view>
+    <view class="mt-16">
+      <input class="input" value="{{birthPlace}}" bindinput="onPlace" placeholder="出生城市（可不填）" maxlength="12" />
+    </view>
+    <view class="row gap-8 mt-16">
+      <button class="btn btn-primary" bindtap="saveBazi" disabled="{{saving}}">{{saving ? '排盘中…' : '生成命盘'}}</button>
+    </view>
+
+    <block wx:if="{{chart}}">
+      <view class="bz-pillars mt-16">
+        <view wx:for="{{chart.four}}" wx:key="label" class="bz-pillar">
+          <text class="bz-label">{{item.label}}</text>
+          <text class="bz-text">{{item.text}}</text>
+          <text class="bz-el" wx:if="{{item.hourLabel}}">{{item.hourLabel}}</text>
+        </view>
+      </view>
+      <view class="t-body mt-16">日主 {{chart.dayMaster.gan}}（{{chart.dayMaster.element}}）· 五行偏 {{chart.dayMaster.taste}}</view>
+      <view class="gz-bar-row" wx:for="{{chartBars}}" wx:key="el">
+        <text class="gz-bar-name">{{item.el}}</text>
+        <view class="gz-bar-track">
+          <view class="gz-bar-fill gz-el-{{item.cls}}" style="width:{{item.w}}%"></view>
+        </view>
+        <text class="gz-bar-pct">{{item.pct}}%</text>
+      </view>
+      <view class="t-mini mt-8">{{chart.note}}</view>
+    </block>
+  </view>
+
+  <!-- ── 它现在这样理解你 ── -->
+  <view class="section">
+    <view class="section-title">它现在这样理解你</view>
+    <view class="card">
+      <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
+        <view class="dot"></view>
+        <text class="t-body grow">{{item}}</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+    </view>
+  </view>
+
+  <!-- ── 票据授权（原「契」）── -->
+  <view class="section">
+    <view class="section-title">授权票据</view>
+    <view class="t-mini mb-16">记录入库时就已脱敏，原文只存密文。读 prompt、导出、还原原文，都要在这里签票 —— 有用途、有期限、有次数。</view>
     <view class="row wrap gap-8">
       <view wx:for="{{scopes}}" wx:key="key" class="{{item.cls}}" bindtap="toggleScope" data-key="{{item.key}}">{{item.label}}</view>
     </view>
@@ -17,11 +79,7 @@
       <view class="token-box" bindtap="copyToken">{{issuedToken}}</view>
       <view class="t-mini">只显示这一次，15 分钟有效、最多 3 次。点一下可复制。</view>
     </view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">用票据做什么</view>
-    <view class="row wrap gap-8">
+    <view class="row wrap gap-8 mt-16">
       <button class="btn btn-ghost btn-sm" bindtap="readPrompt" disabled="{{busy}}">读取 prompt</button>
       <button class="btn btn-ghost btn-sm" bindtap="doExport" data-depth="safe" disabled="{{busy}}">导出（仅脱敏）</button>
       <button class="btn btn-ghost btn-sm" bindtap="doExport" data-depth="sealed" disabled="{{busy}}">导出（含密文）</button>
@@ -32,7 +90,7 @@
   </view>
 
   <view class="section">
-    <view class="section-title">票据</view>
+    <view class="section-title">票据记录</view>
     <view class="empty" wx:if="{{!grants.length}}">还没有签发过授权</view>
     <view wx:for="{{grants}}" wx:key="id" class="{{item.rowCls}}">
       <view class="grow">
@@ -49,6 +107,15 @@
     <view wx:for="{{audits}}" wx:key="id" class="grant-row">
       <text class="t-mini">{{item.time}}</text>
       <text class="t-mini grow">{{item.text}}</text>
+    </view>
+  </view>
+
+  <!-- ── 法律文本 ── -->
+  <view class="section">
+    <view class="section-title">法律文本</view>
+    <view class="row wrap gap-8">
+      <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="privacy">隐私政策</button>
+      <button class="btn btn-ghost btn-sm" bindtap="goLegal" data-doc="terms">用户协议</button>
     </view>
   </view>
 

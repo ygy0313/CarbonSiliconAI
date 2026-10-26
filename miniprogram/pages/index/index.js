@@ -200,7 +200,6 @@ Page({
         : '点名字给自己起个昵称，首页就不显示真名',
       completeness,
       completenessPct: Math.round(completeness * 100) + '',
-      hints: (silicon.traits && silicon.traits.personaHints) || [],
       dims,
       filled,
       recent,

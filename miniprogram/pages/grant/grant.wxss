@@ -35,3 +35,129 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ── 头卡 ── */
+.me-head {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 28rpx 24rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+}
+.me-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: var(--green-deep);
+  color: #fff;
+  font-size: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.me-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.me-more {
+  font-size: 24rpx;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+/* ── 八字 ── */
+.pick-box {
+  padding: 16rpx 22rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: var(--text-1);
+}
+.bz-pillars {
+  display: flex;
+  gap: 12rpx;
+}
+.bz-pillar {
+  flex: 1;
+  padding: 18rpx 0;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+.bz-label {
+  font-size: 22rpx;
+  color: var(--text-3);
+}
+.bz-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.bz-el {
+  font-size: 20rpx;
+  color: var(--text-3);
+}
+
+/* ── 理解你 ── */
+.hint-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 12rpx 0;
+}
+.dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--green);
+  margin-top: 16rpx;
+  flex-shrink: 0;
+}
+
+/* ── 五行分布条（英文类名，WXSS 不认中文）── */
+.gz-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 14rpx;
+}
+.gz-bar-name {
+  width: 40rpx;
+  font-size: 24rpx;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.gz-bar-track {
+  flex: 1;
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--line);
+  overflow: hidden;
+}
+.gz-bar-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--green);
+  transition: width 0.3s ease;
+}
+.gz-bar-fill.gz-el-mu { background: #4E8C6A; }
+.gz-bar-fill.gz-el-huo { background: #B4553F; }
+.gz-bar-fill.gz-el-tu { background: #A9873F; }
+.gz-bar-fill.gz-el-jin { background: #8A8F92; }
+.gz-bar-fill.gz-el-shui { background: #3E6F8C; }
+.gz-bar-pct {
+  width: 68rpx;
+  text-align: right;
+  font-size: 22rpx;
+  color: var(--text-3);
+  flex-shrink: 0;
+}

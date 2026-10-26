@@ -101,6 +101,11 @@ module.exports = {
   // ── 法律文本（隐私政策 / 用户协议）──
   getLegal: id => request(`/api/legal/${id}`),
 
+  // ── 个人八字：出生信息录入 / 命盘读取 ──
+  saveBazi: (personId, payload) =>
+    request(`/api/persons/${personId}/bazi`, { method: 'POST', data: payload }),
+  getBazi: personId => request(`/api/persons/${personId}/bazi`),
+
   // ── Obsidian 笔记检索（读笔记需 scope=vault 票据）──
   vaultSearch: (personId, q, token) =>
     request(`/api/persons/${personId}/vault/search?q=${encodeURIComponent(q)}`, { token }),

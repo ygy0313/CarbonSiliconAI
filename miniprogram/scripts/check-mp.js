@@ -215,6 +215,22 @@ function main() {
   ok('问答页有 pick / load', typeof quiz.pick === 'function' && typeof quiz.load === 'function')
   ok('问答页初始未答完', quiz.data.finished === false && quiz.data.done === 0)
 
+  console.log('\n【9】「我的」页：tabBar 改名 / 八字录入 / 理解你迁移')
+  ok('tabBar「契」已改「我的」', (appJson.tabBar.list || []).some(t => t.text === '我的' && t.pagePath === 'pages/grant/grant'))
+  const mine = loadPage('pages/grant/grant.js')
+  ok('我的页有八字录入与命盘渲染方法', typeof mine.saveBazi === 'function' && typeof mine.applyChart === 'function')
+  ok('我的页有昵称设置', typeof mine.setNickname === 'function')
+  ok('时辰选择器含「不知道」+ 十二时辰', (mine.data.hourOptions || []).length === 13)
+  ok('我的页保留票据能力', typeof mine.issue === 'function' && typeof mine.revoke === 'function')
+  ok('命盘初始为空态（未录入不假装有盘）', mine.data.chart === null)
+  const mineWxml = fs.readFileSync(path.join(MP, 'pages/grant/grant.wxml'), 'utf8')
+  ok('「它现在这样理解你」已迁入我的页', mineWxml.includes('它现在这样理解你'))
+  ok('我的页有法律文本入口', mineWxml.includes('隐私政策') && mineWxml.includes('用户协议'))
+  const idxWxml = fs.readFileSync(path.join(MP, 'pages/index/index.wxml'), 'utf8')
+  ok('首页已移除「理解你」模块', !idxWxml.includes('它现在这样理解你'))
+  const idxSrc = fs.readFileSync(path.join(MP, 'pages/index/index.js'), 'utf8')
+  ok('首页 JS 不再装配 hints', !idxSrc.includes('personaHints'))
+
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {
     console.log('失败项：')

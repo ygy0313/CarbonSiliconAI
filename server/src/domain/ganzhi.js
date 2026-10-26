@@ -240,6 +240,75 @@ function currentTerm(date) {
   }
 }
 
+// 时柱：五鼠遁（甲己还加甲，乙庚丙作初……）。时支按 23 点起子时。
+// 输入 hour 为 0-23 的数字；返回 null 表示没有时辰（不算时柱）。
+function hourPillar(dayPillarText, hour) {
+  if (hour === null || hour === undefined || hour === false) return null
+  const h = Number(hour)
+  if (!Number.isInteger(h) || h < 0 || h > 23) return null
+  const dayGanIdx = GAN.indexOf(dayPillarText[0])
+  if (dayGanIdx < 0) return null
+  const branchIdx = Math.floor(((h + 1) % 24) / 2) % 12
+  const ganIdx = ((dayGanIdx % 5) * 2 + branchIdx) % 10
+  const gan = GAN[ganIdx]
+  const zhi = ZHI[branchIdx]
+  return {
+    gan,
+    zhi,
+    text: `${gan}${zhi}`,
+    ganElement: GAN_ELEMENT[gan],
+    zhiElement: ZHI_ELEMENT[zhi],
+    label: `${hourName(branchIdx)}时`,
+  }
+}
+
+const HOUR_NAMES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
+function hourName(branchIdx) {
+  return HOUR_NAMES[((branchIdx % 12) + 12) % 12]
+}
+
+/**
+ * 个人命盘：出生年月日（+可选时辰）→ 四柱、日主、五行分布。
+ * 与 ganzhiOf 共用同一套柱计算，保证「今天」和「生日」的干支口径一致。
+ * @param {{y:number,m:number,d:number,hour?:number|null,place?:string}} birth
+ */
+function birthChart({ y, m, d, hour = null, place = '' }) {
+  // 构造北京时间下的 Date（civilInBeijing 会 +8，所以这里按 UTC -8 反推）
+  const h = hour === null || hour === undefined ? 12 : hour
+  const date = new Date(Date.UTC(y, m - 1, d, h - 8, 0, 0))
+  const year = yearPillar(date)
+  const month = monthPillar(date)
+  const day = dayPillar(date)
+  const hp = hour === null || hour === undefined ? null : hourPillar(day.text, hour)
+  const stats = elementStats({ year, month, day, hour: hp })
+
+  const four = [
+    { label: '年', text: year.text, ganElement: year.ganElement, zhiElement: year.zhiElement },
+    { label: '月', text: month.text, ganElement: month.ganElement, zhiElement: month.zhiElement },
+    { label: '日', text: day.text, ganElement: day.ganElement, zhiElement: day.zhiElement },
+  ]
+  if (hp) four.push({ label: '时', text: hp.text, ganElement: hp.ganElement, zhiElement: hp.zhiElement, hourLabel: hp.label })
+
+  return {
+    birth: { y, m, d, hour: hour === undefined ? null : hour, place: place || '' },
+    pillars: {
+      year: year.text,
+      month: month.text,
+      day: day.text,
+      hour: hp ? hp.text : null,
+    },
+    four,
+    dayMaster: {
+      gan: day.gan,
+      element: day.ganElement,
+      taste: ELEMENT_TASTE[day.ganElement],
+    },
+    elements: stats,
+    // 免责同运势红线：只描述构成与口味倾向，不作吉凶/健康/财运断言
+    note: '干支命盘是历法信息，只描述构成与偏好倾向，不作吉凶、健康、财运断言。',
+  }
+}
+
 function relationOf(dayEl, baseEl) {
   if (!dayEl || !baseEl) return '比和'
   if (dayEl === baseEl) return '比和'
@@ -250,11 +319,11 @@ function relationOf(dayEl, baseEl) {
 }
 
 // 五行权重：天干计 1，地支本气计 1，藏干其余各计 0.4，日干（日主）额外加权
-function elementStats({ year, month, day }) {
+function elementStats({ year, month, day, hour } = {}) {
   const score = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 }
   const add = (el, w) => { if (el) score[el] += w }
 
-  for (const p of [year, month, day]) {
+  for (const p of [year, month, day, hour]) {
     if (!p) continue
     add(p.ganElement, 1)
     add(p.zhiElement, 1)
@@ -383,5 +452,8 @@ module.exports = {
   currentTerm,
   elementStats,
   relationOf,
+  hourPillar,
+  hourName,
+  birthChart,
   ganzhiOf,
 }

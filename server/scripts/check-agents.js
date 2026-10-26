@@ -159,6 +159,28 @@ async function main() {
   ok('服务市集里有「运动建议」', (servicesAfter.data?.services || []).some(s => s.id === 'move.suggest'))
   ok('意图覆盖包含 move', (servicesAfter.data?.services || []).some(s => s.intents.includes('move')))
 
+  console.log('\n【8】个人八字（录入/命盘/回退/校验）')
+  const bazi = await call(`/api/persons/${P}/bazi`, {
+    method: 'POST',
+    body: { date: '1980-05-12', hour: 14, place: '银川' },
+  })
+  ok('录入返回四柱（含时柱）', (bazi.data?.four || []).length === 4, JSON.stringify(bazi.data?.pillars || {}))
+  ok('日主取自生日日干', !!bazi.data?.dayMaster?.gan && !!bazi.data?.dayMaster?.element)
+  ok('五行分布有五个元素', (bazi.data?.elements?.ranked || []).length === 5)
+  ok('带免责说明（不作吉凶）', String(bazi.data?.note || '').includes('不作吉凶'))
+
+  const baziGet = await call(`/api/persons/${P}/bazi`)
+  ok('录入后可查回', baziGet.data?.configured === true && baziGet.data?.birth?.place === '银川')
+  ok('查回的柱与录入一致', baziGet.data?.pillars?.day === bazi.data?.pillars?.day)
+
+  const baziBad1 = await call(`/api/persons/${P}/bazi`, { method: 'POST', body: { date: '1980-02-31' } })
+  ok('不存在的日期被拒', baziBad1.status === 400)
+  const baziBad2 = await call(`/api/persons/${P}/bazi`, { method: 'POST', body: { date: '1980-05-12', hour: 25 } })
+  ok('非法时辰被拒', baziBad2.status === 400)
+
+  const gzAfter = await call(`/api/persons/${P}/ganzhi`)
+  ok('今日干支回退用生日日主', gzAfter.status === 200 && !!gzAfter.data?.me?.element)
+
   console.log(`\n结果：${pass} 通过 / ${fail} 失败\n`)
   if (fail) {
     console.log('失败项：')

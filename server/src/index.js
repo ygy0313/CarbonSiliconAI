@@ -576,7 +576,59 @@ const routes = [
       if (Number.isNaN(d.getTime())) throw new ValidationError('date 不是合法日期')
       const silicon = compileSilicon(repos, params[0], { limit: 1 })
       const el = silicon?.facts?.find(f => f.key === 'self.element' && f.confidence >= 0.4)?.value || null
-      return gz.ganzhiOf(d, el)
+      // 没答过入局题但有生日时，用出生日的日主当「我」
+      let el2 = el
+      if (!el2) {
+        const bf = repos.fact.get(params[0], 'self.birthDate')
+        if (bf && /^\d{4}-\d{2}-\d{2}$/.test(String(bf.value))) {
+          const [by, bm, bd] = String(bf.value).split('-').map(Number)
+          el2 = gz.dayPillar(new Date(Date.UTC(by, bm - 1, bd, 4))).ganElement
+        }
+      }
+      return gz.ganzhiOf(d, el2)
+    },
+  },
+
+  // ── 个人八字：出生信息录入与命盘（历法信息，不作吉凶断言）──
+  {
+    method: 'POST',
+    pattern: /^\/api\/persons\/([\w-]+)\/bazi$/,
+    handler: async ({ params, body }) => {
+      requirePerson(params[0])
+      const dateStr = requireString(body.date, 'date', 10)
+      const md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
+      if (!md) throw new ValidationError('date 需为 YYYY-MM-DD')
+      const y = Number(md[1])
+      const m = Number(md[2])
+      const d = Number(md[3])
+      if (y < 1900 || y > 2100) throw new ValidationError('出生年份需在 1900-2100 之间')
+      const probe = new Date(Date.UTC(y, m - 1, d))
+      if (probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) throw new ValidationError('date 不是真实存在的日期')
+      let hour = null
+      if (body.hour !== null && body.hour !== undefined && body.hour !== '') {
+        hour = Number(body.hour)
+        if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new ValidationError('hour 需为 0-23 的整数')
+      }
+      const place = body.place ? requireString(body.place, 'place', 20) : ''
+      const chart = gz.birthChart({ y, m, d, hour, place })
+      repos.fact.upsert(params[0], 'self.birthDate', dateStr, { confidence: 0.9, source: 'user_record' })
+      if (hour !== null) repos.fact.upsert(params[0], 'self.birthHour', hour, { confidence: 0.9, source: 'user_record' })
+      if (place) repos.fact.upsert(params[0], 'self.birthPlace', place, { confidence: 0.9, source: 'user_record' })
+      return chart
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/persons\/([\w-]+)\/bazi$/,
+    handler: async ({ params }) => {
+      requirePerson(params[0])
+      const bf = repos.fact.get(params[0], 'self.birthDate')
+      if (!bf || !/^\d{4}-\d{2}-\d{2}$/.test(String(bf.value))) return { configured: false }
+      const [y, m, d] = String(bf.value).split('-').map(Number)
+      const hf = repos.fact.get(params[0], 'self.birthHour')
+      const hour = hf ? Number(hf.value) : null
+      const pf = repos.fact.get(params[0], 'self.birthPlace')
+      return { configured: true, ...gz.birthChart({ y, m, d, hour, place: pf ? String(pf.value) : '' }) }
     },
   },
 

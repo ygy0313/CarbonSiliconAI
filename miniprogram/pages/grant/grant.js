@@ -1,5 +1,5 @@
-// 契（授权）：签发票据、撤销、审计、导出。
-// 红线：明文票据只在本页展示一次，不写本地存储。
+// 我的：个人属性聚合页 —— 昵称、个人八字、它现在这样理解你、票据授权、法律文本。
+// 红线：明文票据只在本页展示一次，不写本地存储；命盘只描述构成，不作吉凶断言。
 
 const app = getApp()
 const api = require('../../utils/api')
@@ -11,8 +11,43 @@ const SCOPE_DEFS = [
   { key: 'pii', label: '读取身份信息', desc: '还原手机号/证件号等' },
 ]
 
+// 十二时辰选择器：value 为该时辰的起时（0-23），「不知道」不录时辰
+const HOUR_OPTIONS = [
+  { label: '不知道 / 不填', hour: null },
+  { label: '子时 23-01', hour: 0 },
+  { label: '丑时 01-03', hour: 2 },
+  { label: '寅时 03-05', hour: 4 },
+  { label: '卯时 05-07', hour: 6 },
+  { label: '辰时 07-09', hour: 8 },
+  { label: '巳时 09-11', hour: 10 },
+  { label: '午时 11-13', hour: 12 },
+  { label: '未时 13-15', hour: 14 },
+  { label: '申时 15-17', hour: 16 },
+  { label: '酉时 17-19', hour: 18 },
+  { label: '戌时 19-21', hour: 20 },
+  { label: '亥时 21-23', hour: 22 },
+]
+
+// WXSS 不支持中文类名，五行条用英文类名（与首页同一套映射）
+const ELEMENT_CLS = { 木: 'mu', 火: 'huo', 土: 'tu', 金: 'jin', 水: 'shui' }
+
 Page({
   data: {
+    // ── 头卡 ──
+    nickname: '',
+    hasNickname: false,
+    completenessPct: '',
+    // ── 八字 ──
+    birthDate: '',
+    hourOptions: HOUR_OPTIONS.map(o => o.label),
+    hourIdx: 0,
+    birthPlace: '',
+    saving: false,
+    chart: null,
+    chartBars: [],
+    // ── 理解你 ──
+    hints: [],
+    // ── 票据 ──
     scopes: SCOPE_DEFS.map(s => ({ ...s, on: false, cls: 'chip' })),
     purpose: '',
     issuing: false,
@@ -26,12 +61,112 @@ Page({
 
   onLoad() {
     this.reload()
+    this.loadMine()
+  },
+
+  onShow() {
+    this.loadMine()
   },
 
   onPullDownRefresh() {
-    this.reload().finally(() => wx.stopPullDownRefresh())
+    Promise.all([this.reload(), this.loadMine()]).finally(() => wx.stopPullDownRefresh())
   },
 
+  // ── 个人属性：昵称 / 完整度 / 理解你 ──
+  async loadMine() {
+    const nickname = wx.getStorageSync('nickname') || ''
+    this.setData({ nickname, hasNickname: !!nickname })
+    try {
+      const silicon = await app.loadSilicon(false)
+      this.setData({
+        completenessPct: Math.round((silicon.completeness || 0) * 100) + '',
+        hints: (silicon.traits && silicon.traits.personaHints) || [],
+      })
+    } catch (_) {}
+    try {
+      const b = await api.getBazi(app.globalData.personId)
+      if (b && b.configured) this.applyChart(b)
+    } catch (_) {}
+  },
+
+  setNickname() {
+    wx.showModal({
+      title: '给自己起个昵称',
+      editable: true,
+      placeholderText: '最多 12 个字',
+      content: this.data.nickname,
+      success: res => {
+        if (!res.confirm) return
+        const v = (res.content || '').trim().slice(0, 12)
+        wx.setStorageSync('nickname', v)
+        this.setData({ nickname: v, hasNickname: !!v })
+        wx.showToast({ title: v ? '昵称已保存' : '已清除昵称', icon: 'success' })
+      },
+    })
+  },
+
+  goProfile() {
+    wx.switchTab({ url: '/pages/profile/profile' })
+  },
+
+  // ── 八字录入 ──
+  onBirthDate(e) {
+    this.setData({ birthDate: e.detail.value })
+  },
+
+  onHourPick(e) {
+    this.setData({ hourIdx: Number(e.detail.value) })
+  },
+
+  onPlace(e) {
+    this.setData({ birthPlace: e.detail.value })
+  },
+
+  async saveBazi() {
+    if (!this.data.birthDate) {
+      wx.showToast({ title: '先选出生年月日', icon: 'none' })
+      return
+    }
+    this.setData({ saving: true })
+    try {
+      const hour = HOUR_OPTIONS[this.data.hourIdx].hour
+      const r = await api.saveBazi(app.globalData.personId, {
+        date: this.data.birthDate,
+        hour,
+        place: this.data.birthPlace.trim() || undefined,
+      })
+      this.applyChart(r)
+      wx.showToast({ title: '命盘已生成', icon: 'success' })
+    } catch (e) {
+      wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+    } finally {
+      this.setData({ saving: false })
+    }
+  },
+
+  applyChart(r) {
+    const bars = (r.elements && r.elements.ranked) || []
+    const b = r.birth || {}
+    const pad = n => (n < 10 ? '0' + n : '' + n)
+    this.setData({
+      chart: r,
+      birthDate: b.y ? `${b.y}-${pad(b.m)}-${pad(b.d)}` : this.data.birthDate,
+      hourIdx: Math.max(0, HOUR_OPTIONS.findIndex(o => o.hour === (r.birth && r.birth.hour))),
+      birthPlace: (r.birth && r.birth.place) || '',
+      chartBars: bars.map(x => ({
+        el: x.element,
+        cls: ELEMENT_CLS[x.element] || 'mu',
+        pct: Math.round((x.share || 0) * 100) + '',
+        w: Math.max(4, Math.round((x.share || 0) * 100)),
+      })),
+    })
+  },
+
+  goLegal(e) {
+    wx.navigateTo({ url: '/pages/legal/legal?doc=' + (e.currentTarget.dataset.doc || 'privacy') })
+  },
+
+  // ── 票据（原「契」的全部能力）──
   async reload() {
     try {
       const r = await api.getGrants(app.globalData.personId)
