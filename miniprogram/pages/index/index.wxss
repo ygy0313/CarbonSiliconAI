@@ -1,3 +1,97 @@
+/* ── 问候开场 ───────────────────────────────────────── */
+.greet {
+  padding: 8rpx 4rpx 0;
+}
+.greet-date {
+  font-size: 24rpx;
+  color: var(--text-3);
+  letter-spacing: 1rpx;
+}
+.greet-hello {
+  margin-top: 8rpx;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+/* ── 新人/老用户视角切换 ────────────────────────────── */
+.mode-toggle {
+  flex-shrink: 0;
+  padding: 10rpx 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  border-radius: 999rpx;
+}
+.mode-toggle-text {
+  font-size: 22rpx;
+  color: #d7e8dd;
+}
+.mode-switch-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10rpx;
+}
+.mode-switch {
+  font-size: 22rpx;
+  color: var(--text-3);
+  padding: 6rpx 12rpx;
+}
+
+/* ── 新人引导卡：三步，做完打勾 ─────────────────────── */
+.onboard {
+  padding: 12rpx 24rpx;
+}
+.step {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.step:last-of-type { border-bottom: none; }
+.step-no {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: var(--green-dim, rgba(0, 112, 74, 0.1));
+  color: var(--green);
+  font-size: 26rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step.done .step-no {
+  background: var(--green);
+  color: #fff;
+}
+.step-body { flex: 1; }
+.step-title {
+  font-size: 29rpx;
+  font-weight: 500;
+  color: var(--text);
+}
+.step.done .step-title { color: var(--text-2); }
+.step-sub {
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.step-go {
+  font-size: 24rpx;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.onboard-note {
+  padding: 8rpx 0 16rpx;
+  font-size: 22rpx;
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
 /* ── 主视觉块（深绿底，所有子元素用浅色系）───────── */
 .avatar-on-dark {
   background: rgba(255, 255, 255, 0.14);

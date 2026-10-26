@@ -4,6 +4,12 @@
     <text class="t-mini">还没同意隐私政策，记录暂不会保存 · 点这里看看</text>
   </view>
 
+  <!-- 问候开场：最贵的位置先跟人打招呼，不堆功能（对齐给您请安的开场方式） -->
+  <view class="greet">
+    <view class="greet-date">{{greetDate}}</view>
+    <view class="greet-hello">{{greetHello}}</view>
+  </view>
+
   <!-- 主视觉：一块深绿，把「你是谁 + 档案长到哪了」一次说清 -->
   <view class="hero mt-8">
     <view class="row gap-16">
@@ -12,32 +18,93 @@
         <view class="hero-title">{{name}}</view>
         <view class="hero-sub">{{identity}}</view>
       </view>
-      <text class="hero-pct">{{completenessPct}}%</text>
+      <text class="hero-pct" wx:if="{{mode === 'old'}}">{{completenessPct}}%</text>
+      <view class="mode-toggle" bindtap="toggleMode" wx:else>
+        <text class="mode-toggle-text">测试·切换老用户</text>
+      </view>
     </view>
 
-    <view class="hero-bar mt-24">
+    <view class="hero-bar mt-24" wx:if="{{mode === 'old'}}">
       <view class="hero-bar-fill" style="width:{{completenessPct}}%"></view>
     </view>
-    <view class="dim-grid mt-16">
+    <view class="dim-grid mt-16" wx:if="{{mode === 'old'}}">
       <view wx:for="{{dims}}" wx:key="key" class="dim {{item.cls}}"></view>
     </view>
-    <view class="hero-mini mt-16">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
+    <view class="hero-mini mt-16" wx:if="{{mode === 'old'}}">{{filled}} / {{total}} 个维度有据可依 · 缺的会主动问你</view>
+    <view class="hero-mini mt-16" wx:else>新人视角 · 档案还是白纸，点下面三步把它写满</view>
+  </view>
+
+  <!-- 老用户也能随时切回新人视角重走引导（右上角小字，不抢视觉） -->
+  <view class="mode-switch-row" wx:if="{{mode === 'old'}}">
+    <text class="mode-switch" bindtap="toggleMode">测试：切到新人视角</text>
   </view>
 
   <view class="t-mini mt-8" wx:if="{{offline}}">离线演示数据 · 后端未连接</view>
 
-  <view class="section">
-    <text class="section-title">它现在这样理解你</text>
-    <text class="section-more" bindtap="goProfile">去核对</text>
+  <!-- ── 新人引导：三步把档案立起来，每步一个入口，做完自动打勾 ── -->
+  <view wx:if="{{mode === 'new'}}" class="section">
+    <text class="section-title">先做三件事</text>
   </view>
-  <view class="card">
-    <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
-      <view class="dot"></view>
-      <text class="t-body grow">{{item}}</text>
+  <view wx:if="{{mode === 'new'}}" class="card onboard">
+    <view class="step {{ackDone ? 'done' : ''}}" bindtap="reopenLegal">
+      <text class="step-no">{{ackDone ? '✓' : '1'}}</text>
+      <view class="step-body">
+        <view class="step-title">同意三件事</view>
+        <view class="step-sub">隐私怎么保护、数据归谁，先说清楚再开始</view>
+      </view>
+      <text class="step-go">{{ackDone ? '' : '去同意 →'}}</text>
     </view>
-    <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+    <view class="step {{quizDone ? 'done' : ''}}" bindtap="goQuiz">
+      <text class="step-no">{{quizDone ? '✓' : quizDonePartially ? '…' : '2'}}</text>
+      <view class="step-body">
+        <view class="step-title">入局问答 {{quizDoneNum}} / {{quizTotal}}</view>
+        <view class="step-sub">12 道选择题，选完档案就有了骨架，不填表</view>
+      </view>
+      <text class="step-go">{{quizDone ? '' : quizDonePartially ? '继续答 →' : '开始答 →'}}</text>
+    </view>
+    <view class="step" bindtap="goRecord">
+      <text class="step-no">3</text>
+      <view class="step-body">
+        <view class="step-title">记第一笔</view>
+        <view class="step-sub">今天吃了什么、见了谁、在忙什么，一句话就行</view>
+      </view>
+      <text class="step-go">去记 →</text>
+    </view>
+    <view class="onboard-note">答完题、记几笔，这里就会长出「它对你的理解」。</view>
   </view>
 
+  <block wx:if="{{mode === 'old'}}">
+    <view class="section">
+      <text class="section-title">它现在这样理解你</text>
+      <text class="section-more" bindtap="goProfile">去核对</text>
+    </view>
+    <view class="card">
+      <view wx:for="{{hints}}" wx:key="*this" class="hint-row">
+        <view class="dot"></view>
+        <text class="t-body grow">{{item}}</text>
+      </view>
+      <view class="t-mini mt-8" wx:if="{{!hints.length}}">记录几条之后，这里会长出它对你的判断。</view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">最近的记忆</text>
+      <text class="section-more" bindtap="goProfile">全部</text>
+    </view>
+    <view class="card" wx:if="{{recent.length}}">
+      <view wx:for="{{recent}}" wx:key="id" class="memory">
+        <view class="row between">
+          <text class="t-body grow">{{item.summary}}</text>
+          <text class="t-mini">{{item.when}}</text>
+        </view>
+        <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
+          <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty" wx:else>还没有记录。执笔对你还一无所知。</view>
+  </block>
+
+  <!-- 快捷入口：新人老用户都保留 —— 这是首页最有粘合力的一块 -->
   <view class="section">
     <text class="section-title">现在要做什么</text>
     <text class="section-more" bindtap="goChatEmpty">直接说 →</text>
@@ -48,26 +115,9 @@
       <text class="quick-arrow">→</text>
     </view>
   </view>
-  <view class="services-entry" bindtap="goServices">
+  <view class="services-entry" bindtap="goServices" wx:if="{{mode === 'old'}}">
     <text class="t-sub">已接入 {{serviceCount}} 个生活服务 · 查看服务市场</text>
   </view>
-
-  <view class="section">
-    <text class="section-title">最近的记忆</text>
-    <text class="section-more" bindtap="goProfile">全部</text>
-  </view>
-  <view class="card" wx:if="{{recent.length}}">
-    <view wx:for="{{recent}}" wx:key="id" class="memory">
-      <view class="row between">
-        <text class="t-body grow">{{item.summary}}</text>
-        <text class="t-mini">{{item.when}}</text>
-      </view>
-      <view class="row wrap mt-8" wx:if="{{item.tags.length}}">
-        <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag">{{tag}}</text>
-      </view>
-    </view>
-  </view>
-  <view class="empty" wx:else>还没有记录。执笔对你还一无所知。</view>
 
   <view class="btn btn-ghost mt-24" bindtap="goRecord">记一笔</view>
 

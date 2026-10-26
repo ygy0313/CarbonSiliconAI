@@ -1,0 +1,47 @@
+<view class="container">
+
+  <view wx:if="{{error}}" class="quiz-error">{{error}} · <text class="quiz-retry" bindtap="load">重试</text></view>
+
+  <block wx:if="{{!loading && !finished && q}}">
+    <!-- 进度：一题一格，答过的点亮 -->
+    <view class="q-head">
+      <view class="q-progress-text">{{done + 1}} / {{total}}</view>
+      <view class="q-bar">
+        <view class="q-bar-fill" style="width:{{done * 100 / total}}%"></view>
+      </view>
+      <view class="q-group">{{q.group}}</view>
+    </view>
+
+    <view class="q-card">
+      <view class="q-text">{{q.text}}</view>
+      <view class="q-sub" wx:if="{{q.sub}}">{{q.sub}}</view>
+
+      <view class="q-options">
+        <view
+          wx:for="{{q.options}}"
+          wx:key="key"
+          class="q-opt {{submitting ? 'busy' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="pick"
+        >
+          <text class="q-opt-label">{{item.label}}</text>
+        </view>
+      </view>
+
+      <view class="q-hint">没有对错，凭手感选。选完直接进下一题。</view>
+    </view>
+  </block>
+
+  <!-- 答完：不搞仪式感，直接给出下一步 -->
+  <block wx:if="{{!loading && finished}}">
+    <view class="q-done-card">
+      <view class="q-done-title">12 题答完了</view>
+      <view class="q-done-sub">你的档案有了骨架。接下来想到什么记什么，缺的维度执笔会自己补着问。</view>
+      <view class="btn btn-primary mt-24" bindtap="goRecord">记第一笔</view>
+      <view class="btn btn-ghost mt-16" bindtap="goHome">回首页看看</view>
+    </view>
+  </block>
+
+  <view wx:if="{{loading}}" class="q-loading">出题中…</view>
+
+</view>
